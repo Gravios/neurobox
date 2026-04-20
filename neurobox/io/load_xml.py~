@@ -1,0 +1,22 @@
+
+from neurobox.dtypes import MutableStruct
+import xml.etree.ElementTree as ET
+
+def xml_to_struct(root):
+    if len(root) == 0:  # It's a leaf node, just return the text
+        return root.text
+    struct = MutableStruct()
+    for child in root:
+        value = xml_to_struct(child)
+        if child.tag in struct.__dict__:  # If the tag is already present, it's a list
+            if not isinstance(struct.__dict__[child.tag], list):
+                struct.__dict__[child.tag] = [struct.__dict__[child.tag]]
+            struct.__dict__[child.tag].append(value)
+        else:
+            setattr(struct, child.tag, value)
+    return struct
+
+def load_xml(file_name):
+    tree = ET.parse(file_name)
+    root = tree.getroot()
+    return xml_to_struct(root)
