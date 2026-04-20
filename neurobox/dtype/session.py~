@@ -1,0 +1,130 @@
+""" 
+MTASession(name,varargin) 
+Data structure to organize the analysis of neural and position data.
+
+   name - string: Same name as the directory of the session
+
+   varargin:
+     [mazeName, overwrite, TTLValue, xyzSystem, ephySystem, xyzSampleRate]
+
+     mazeName:        string, 3-4 letter name of the testing arena 
+                      (e.g. 'rof' := rectangular open-field)
+
+     overwrite:       boolean, flag to overwrite saved Sessions
+
+     TTLValue:        string, used to synchronize position and electrophysiological data
+
+     dataLogger:       string, name/id of the system(s) to record subject
+
+     xyzSampleRate:   numeric, samples per second for xyz tracking
+                      Vicon(M): 119.881035 Hz
+                      Vicon(V): 199.997752 Hz or 149.9974321 Hz
+                      Optitrack: duno
+
+-------------------------------------------------------------------------------------------------
+   General Loading:
+     
+     Load from saved Session,
+     Session = MTASession(name,mazeName);
+     
+     Create new session,
+     Session = MTASession(name,mazeName,overwrite,TTLValue,xyzSystem,ephySystem);
+
+-------------------------------------------------------------------------------------------------
+     examples:
+       load saved session,
+        Session = MTASession('jg05-20120309','rof');
+
+       Create New Session
+         Session = MTASession('jg05-20120309','rof',1,'0x0040',{'nlx','vicon'},119.881035);
+   
+-------------------------------------------------------------------------------------------------
+
+        filebase - string: full file head in the format name.(Maze.name).trialName
+
+        spath - struct: same as path but with Session name appended to the end
+        
+        path - struct: holds all paths of the constructed data tree created by MTAConfiguration.m
+        
+        name - string: name of the directory holding session information
+
+        trialName - string: designation of trial the full Session has the default name 'all'
+        
+        par - struct: contains parameter information regarding the recording systems, units ect...
+        
+        sampleRate - double: Sample Rate of electrophysiological recording system
+        
+        Maze - MTAMaze: Object containing all maze information
+
+        Model - MTAModel: Object contianing all marker information
+
+        sync - MTADepoch: Loading periods relative to the primary recording system
+
+        xyz - MTADxyz: (Time,Marker,Dimension) XYZ position of each marker 
+
+        ang - MTADang: (Time,Marker,Marker,Dimension) marker to marker angles 
+
+        stc - MTAStateCollection: Stores the periods of events
+        
+        spk - MTASpk: Stores neurons' action potential timing and features
+
+        Fet - MTAFet: Object containing behavioral features
+
+        lfp - MTADlfp: (Time,channel) local field potential
+
+        ufr - MTADufr: (Time,ClusterId) unit firing rates with lfpSampleRate
+
+        nq - struct: clustering quality and spike waveform characteristics
+
+        fbr - MTADfbr: (Time, frequency) fiber photometery with lfpSampleRate
+        
+        arena - MTADrbo: (Time,rbo,dims) Position and Quaternion of arena
+
+        rbo - MTADrbo: (Time,rbo,dims) Position Quaternion of subject
+        
+        meta - struct: contains analysis information regarding probes and subjects
+
+"""
+
+from neurobox.dtype import Struct
+
+#from neurobox.dtype import Arena
+#from neurobox.dtype import Trial
+
+
+class Session:
+
+    def __init__(self, session_name, maze_name:str, overwrite:bool=False, data_loggers:list[str]=["nlx","vicon"], TTLValue:str="0x0040"):
+        self.path:MutableStruct = []
+
+        if isinstance(session_name, Session):
+            pass
+
+        elif session_name is None:
+            pass
+
+        else:
+            self.name = session_name
+            self.spath = self.path.project + "/" + self.name
+            self.trial_name = "all"
+            pass
+
+    @staticmethod
+    def validate(session):
+        if isinstance(session_name, MTATrial):
+            Session = MTASession.validate(Session.filebase)
+        elif isinstance(session_name, MTASession):
+            return
+        elif isinstance(Session, str):
+            pass
+        elif isinstance(Session, MutableStruct):
+            pass
+        else:
+            #error('MTA:validate_trial: unrecognized format');
+            pass
+        
+    def create(self, TTLValue:str, data_loggers:list[str]):
+        pass
+
+    def save(self):
+        pass

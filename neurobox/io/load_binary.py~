@@ -1,0 +1,67 @@
+"""Binary Object."""
+import numpy as np
+import mmap
+import os
+from neurobox.dtypes import MutableStruct
+from neurobox.io.load_par import load_par
+
+
+def load_binary(file_name:str, channels=None, par=None, periods=None,  dtype=np.float64):
+    """
+    load_binary
+    assume par file
+
+    Example usage:
+      file_name = 'path/to/your/file'
+      channels = [0, 2]  # Channels you want to load, starting from 0
+      n_channels = 32  # Total number of channels in the file
+      output = load_binary(file_name, channels)
+
+    """
+    n_channels = int(par.acquisitionSystem.nChannels)
+
+    dtype = np.dtype(f"int{par.acquisitionSystem.nBits}")
+
+    # Assuming little-endian; change this if it's not the case
+    #dtype = dtype.newbyteorder('<')
+    # Get size of the data type
+    dtype_size = np.dtype(dtype).itemsize
+    # Get file size
+    file_size = os.path.getsize(file_name)
+
+    # Number of samples
+    n_samples = file_size // (dtype_size * n_channels)
+
+    if periods is None:
+        periods = np.array([[0, n_samples]])
+
+    data = np.zeros((len(channels), sum(np.diff(periods, axis=1)[:, 0])),
+                    dtype=dtype)
+
+    # Start index for filling up data array
+    start_idx = 0
+
+    for period in periods:
+        # Map the relevant portion of the file to memory
+        position = period[0] * n_channels * dtype_size
+
+        read_samples = (period[1] - period[0]).astype(np.int64)
+
+        length = read_samples * n_channels * dtype_size
+
+        #with os.open(file_name, os.O_RDONLY) as f:
+        fd = os.open(file_name, os.O_RDONLY)
+        # Create the mmap object
+        mmapped_data = mmap.mmap(fd, length=length, offset=position, access=mmap.ACCESS_READ)
+
+        buffer = np.copy(
+            np.frombuffer( mmapped_data, dtype=dtype).reshape((read_samples, n_channels)))
+
+        data[start_idx:start_idx + read_samples,:] = buffer[:,channels].transpose()
+        # Update start index for the next iteration
+        start_idx += read_samples
+        mmapped_data.close()
+        os.close(fd)
+
+
+    return data.transpose()

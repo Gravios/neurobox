@@ -1,0 +1,110 @@
+import numpy as np
+import os
+from neurobox.dtype import Struct
+from neurobox.io import par
+
+def load_clu_res(file_base, el_gps_to_load=None, clus_to_load=None, include_noise=False):
+    """
+    Load cluster (clu) and resource (res) data files corresponding to electrode groups (el_gps).
+
+    Parameters:
+    file_base (str): Base path for the data files without extensions.
+    el_gps_to_load (list): List of electrode group indices to load.
+    clus_to_load (list): List of cluster IDs to load.
+    include_noise (bool): Flag to include noise in the data.
+
+    Returns:
+    tuple: Tuple containing:
+        - res (np.ndarray): Array of resource (spike) times.
+        - clu (np.ndarray): Array of cluster IDs.
+        - map (np.ndarray): Array mapping clusters to electrode groups.
+    """
+    par = load_par(file_base + ".xml")
+
+    if el_gps_to_load is None:
+        el_gps_to_load = list(range(1, len(par.spikeDetection.channelGroups.group) + 1))
+
+    clu = []
+    res = []
+    map = []
+    max_clu = 0
+
+    for x in el_gps_to_load:
+        clu_file = f"{file_base}.clu.{x}"
+        res_file = f"{file_base}.res.{x}"
+
+        if not os.path.exists(clu_file):
+            continue
+
+        # Load clu
+        with open(clu_file, 'r') as f:
+            fclu = np.array([int(line.strip()) for line in f.readlines()[1:]])
+
+        # Load res
+        with open(res_file, 'r') as f:
+            fres = np.array([int(line.strip()) for line in f.readlines()])
+
+        if not include_noise:
+            indx = fclu > 1
+            if np.sum(indx) == 0:
+                continue
+            fclu = fclu[indx]
+            fres = fres[indx]
+
+        fclu += max_clu
+        uclu = np.unique(fclu)
+
+        clu.extend(fclu)
+        max_clu = np.max(clu)
+        res.extend(fres)
+
+        shk = np.zeros(len(uclu)) + x
+        map_ = np.column_stack((uclu, shk))
+        map.extend(map_)
+
+    # First convert 'res' and 'clu' to numpy arrays if they aren't already
+    res = np.array(res)
+    clu = np.array(clu)
+
+    # Get the sort indices for 'res'
+    si = np.argsort(res)
+
+    # Use the indices to sort 'res' and 'clu'
+    res = res[si]
+    clu = clu[si]
+    # Get the sort indices for 'res'
+
+    if clus_to_load is not None:
+        res, clu = select_clusters(res, clu, units, spk, session)
+
+    return np.array(res), np.array(clu), np.array(map)
+
+
+def select_clusters(res, clu, units=None, spk=None, session=None):
+    """
+    Selects and returns the spike times and clusters based on specified units.
+
+    Parameters:
+    res (np.ndarray): Array of spike times.
+    clu (np.ndarray): Array of cluster IDs corresponding to spike times.
+    units: None, list/array of unit IDs, or a string identifier for unit selection.
+    spk: Object containing spike information with a method to get unit sets.
+    session: Identifier for the session.
+
+    Returns:
+    np.ndarray: Filtered spike times.
+    np.ndarray: Filtered cluster IDs.
+    """
+
+    if units is None:
+        cind = np.ones(len(res), dtype=bool)
+    elif isinstance(units, (list, np.ndarray)):
+        cind = np.isin(clu, units)
+    elif isinstance(units, str):
+        # Replace 'get_unit_set' with the actual method name from the 'spk' object
+        selected_units = spk.get_unit_set(session, units)
+        cind = np.isin(clu, selected_units)
+    else:
+        raise ValueError("Units must be None, a list/array of unit IDs, or a string identifier.")
+
+    return res[cind], clu[cind]
