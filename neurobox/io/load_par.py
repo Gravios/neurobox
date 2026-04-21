@@ -1,59 +1,52 @@
-import os
-import xml.etree.ElementTree as ET
-from neurobox.io.load_xml import load_xml
+"""
+load_par.py
+===========
+Load the neurosuite-3 YAML session parameter file.
 
-def file_exists(file_name):
-    return os.path.exists(file_name)
+The function accepts either a full path (with or without ``.yaml``
+extension) or a bare session base path and appends ``.yaml``
+automatically.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from neurobox.dtype import Struct
+from neurobox.io.load_yaml import load_yaml
 
 
-def load_par(file_name, spec_info=1):
-    par = {}
+def load_par(file_name: str | Path) -> Struct:
+    """Load a neurosuite-3 YAML parameter file.
 
-    # Check if file exists
-    if not file_exists(file_name):
-        # file_name = resolve_path(file_name, 0)  # Add your resolve_path logic here
-        pass
+    Parameters
+    ----------
+    file_name:
+        Full path to the ``.yaml`` file, or a bare session base path
+        (no extension) — ``.yaml`` will be appended automatically.
 
-    if '.par' in file_name:
-        file_base = file_name.split('.par')[0]
-    elif '.xml' in file_name:
-        file_base = file_name.split('.xml')[0]
-    else:
-        file_base = file_name
+    Returns
+    -------
+    par : Struct
+        Parsed parameter object.  Key attributes:
 
-    if file_exists(f"{file_base}.xml"):
-        par = load_xml(f"{file_base}.xml")
+        ``par.acquisitionSystem.nChannels``    — total channel count
+        ``par.acquisitionSystem.nBits``        — ADC bit depth (usually 16)
+        ``par.acquisitionSystem.samplingRate`` — wideband sample rate (Hz)
+        ``par.spikeDetection.channelGroups``   — list of Struct, one per shank
+        ``par.anatomicalDescription.channelGroups`` — list of Struct, one per shank
+        ``par.probes``                          — list of Struct (probe metadata)
 
-    elif file_exists(f"{file_base}.par"):
-        with open(f"{file_base}.par", 'r') as fp:
-            par['file_name'] = file_base
+    Raises
+    ------
+    FileNotFoundError
+        When the ``.yaml`` file cannot be found.
+    """
+    path = Path(file_name)
+    if path.suffix.lower() != ".yaml":
+        path = path.with_suffix(".yaml")
 
-            # Read n_channels and n_bits
-            line = fp.readline().strip()
-            a = list(map(int, line.split()))
-            par['n_channels'] = a[0]
-            par['n_bits'] = a[1]
+    if not path.exists():
+        raise FileNotFoundError(f"YAML parameter file not found: {path}")
 
-            # Read sample_time and hi_pass_freq
-            line = fp.readline().strip()
-            a = list(map(float, line.split()))
-            par['sample_time'] = a[0]
-            par['hi_pass_freq'] = a[1]
-
-            # Read n_elec_gps
-            line = fp.readline().strip()
-            if not line:
-                return par
-            a = int(line)
-            par['n_elec_gps'] = a
-
-            # Read elec_gp
-            par['elec_gp'] = []
-            for i in range(par['n_elec_gps']):
-                line = fp.readline().strip()
-                a = list(map(int, line.split()))
-                par['elec_gp'].append(a[1:])
-    else:
-        raise FileNotFoundError('Par or Xml file does not exist!')
-
-    return par
+    return load_yaml(path)
