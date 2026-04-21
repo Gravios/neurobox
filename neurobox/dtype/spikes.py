@@ -1,0 +1,273 @@
+"""
+spikes.py  —  NBSpk
+====================
+Port of MTASpk.
+
+Design differences from MTASpk
+--------------------------------
+* Spike times (``res``) stored in **seconds** (float64), not sample
+  indices.  ``samplerate`` is preserved for back-compat / writing.
+* ``__getitem__`` supports both cluster-ID selection and
+  epoch-restricted selection:  ``spk[clu_ids]``,
+  ``spk[clu_ids, epoch]``.
+* ``restrict(epoch)`` returns a new NBSpk limited to spikes within
+  the given epoch's periods.
+* ``by_unit()`` → ``dict[int → np.ndarray]`` (same as
+  ``spikes_by_unit`` in neurobox.io).
+* ``load()`` delegates directly to ``neurobox.io.load_clu_res``.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import numpy as np
+
+from neurobox.dtype.epoch import NBEpoch
+
+
+class NBSpk:
+    """Container for spike times and cluster assignments.
+
+    Attributes
+    ----------
+    res : np.ndarray, shape (n_spikes,), float64
+        Spike times in **seconds**, sorted ascending.
+    clu : np.ndarray, shape (n_spikes,), int32
+        Globally-remapped cluster ID for each spike.
+    map : np.ndarray, shape (n_units, 2), int64
+        Columns: ``[global_cluster_id, shank_index]``.
+    samplerate : float
+        Original recording sample rate (used when writing back to
+        binary or converting to sample indices).
+    fet : np.ndarray or None
+        Spike waveform features, shape ``(n_spikes, n_features)``.
+    spk : np.ndarray or None
+        Spike waveform snippets, shape
+        ``(n_spikes, n_samples, n_channels)``.
+    type : str
+        Always ``'TimePoints'``.
+    """
+
+    def __init__(
+        self,
+        res: np.ndarray | None = None,
+        clu: np.ndarray | None = None,
+        map_: np.ndarray | None = None,
+        samplerate: float = 20000.0,
+        fet: np.ndarray | None = None,
+        spk: np.ndarray | None = None,
+    ) -> None:
+        self.res: np.ndarray        = (np.asarray(res, dtype=np.float64)
+                                       if res is not None
+                                       else np.array([], dtype=np.float64))
+        self.clu: np.ndarray        = (np.asarray(clu, dtype=np.int32)
+                                       if clu is not None
+                                       else np.array([], dtype=np.int32))
+        self.map: np.ndarray        = (np.asarray(map_, dtype=np.int64)
+                                       if map_ is not None
+                                       else np.empty((0, 2), dtype=np.int64))
+        self.samplerate: float      = float(samplerate)
+        self.fet: np.ndarray | None = fet
+        self.spk: np.ndarray | None = spk
+        self.type: str              = "TimePoints"
+
+    # ------------------------------------------------------------------ #
+    # Representation                                                       #
+    # ------------------------------------------------------------------ #
+
+    def __repr__(self) -> str:
+        n_spk  = len(self.res)
+        n_unit = len(np.unique(self.clu)) if len(self.clu) else 0
+        return f"NBSpk(n_spikes={n_spk}, n_units={n_unit}, sr={self.samplerate}Hz)"
+
+    def __len__(self) -> int:
+        return len(self.res)
+
+    def isempty(self) -> bool:
+        return len(self.res) == 0
+
+    # ------------------------------------------------------------------ #
+    # Indexing — spk[unit_ids] or spk[unit_ids, epoch]                   #
+    # ------------------------------------------------------------------ #
+
+    def __getitem__(self, idx):
+        """Return spike times for the given cluster ID(s).
+
+        Parameters
+        ----------
+        idx : int | array-like | tuple[ids, NBEpoch]
+            ``spk[3]``         → times for cluster 3.
+            ``spk[[3, 7]]``    → times for clusters 3 and 7.
+            ``spk[3, epoch]``  → times for cluster 3 within epoch.
+            ``spk[[3,7], epoch]`` → times for clusters 3,7 within epoch.
+        """
+        if isinstance(idx, tuple):
+            unit_ids, epoch = idx[0], idx[1]
+        else:
+            unit_ids, epoch = idx, None
+
+        # Scalar → 1-element array
+        if np.isscalar(unit_ids):
+            unit_ids = [unit_ids]
+
+        mask = np.isin(self.clu, unit_ids)
+        times = self.res[mask]
+
+        if epoch is not None:
+            times = _restrict_times(times, epoch)
+
+        return times
+
+    # ------------------------------------------------------------------ #
+    # Restrict to epoch                                                    #
+    # ------------------------------------------------------------------ #
+
+    def restrict(self, epoch: "NBEpoch") -> "NBSpk":
+        """Return a new NBSpk with spikes limited to *epoch* periods."""
+        if epoch.isempty():
+            return NBSpk(samplerate=self.samplerate)
+        periods = epoch._as_periods()
+        keep    = _within_periods(self.res, periods)
+        new_map = self.map.copy()
+        # Retain only units still present after restriction
+        remaining_units = np.unique(self.clu[keep])
+        new_map = new_map[np.isin(new_map[:, 0], remaining_units)]
+        return NBSpk(
+            res        = self.res[keep],
+            clu        = self.clu[keep],
+            map_       = new_map,
+            samplerate = self.samplerate,
+            fet        = self.fet[keep]  if self.fet is not None else None,
+            spk        = self.spk[keep]  if self.spk is not None else None,
+        )
+
+    # ------------------------------------------------------------------ #
+    # Per-unit dict                                                        #
+    # ------------------------------------------------------------------ #
+
+    def by_unit(self) -> dict[int, np.ndarray]:
+        """Return ``{cluster_id: spike_times}`` dict."""
+        return {int(uid): self.res[self.clu == uid]
+                for uid in np.unique(self.clu)}
+
+    @property
+    def unit_ids(self) -> np.ndarray:
+        return np.unique(self.clu)
+
+    @property
+    def n_units(self) -> int:
+        return len(self.unit_ids)
+
+    # ------------------------------------------------------------------ #
+    # Shank mapping helpers                                                #
+    # ------------------------------------------------------------------ #
+
+    def shank_for_unit(self, unit_id: int) -> int | None:
+        """Return the shank index of a given unit, or None if not found."""
+        row = self.map[self.map[:, 0] == unit_id]
+        return int(row[0, 1]) if len(row) else None
+
+    def units_on_shank(self, shank: int) -> np.ndarray:
+        """Return all unit IDs on *shank*."""
+        return self.map[self.map[:, 1] == shank, 0].astype(np.int32)
+
+    # ------------------------------------------------------------------ #
+    # Loading                                                              #
+    # ------------------------------------------------------------------ #
+
+    @classmethod
+    def load(
+        cls,
+        file_base: str | Path,
+        shank_groups: list[int] | None = None,
+        include_noise: bool = False,
+        include_waveforms: bool = False,
+        samplerate: float | None = None,
+    ) -> "NBSpk":
+        """Load from neurosuite-3 binary .res/.clu files.
+
+        Parameters
+        ----------
+        file_base:
+            Session base path without extension.
+        shank_groups:
+            Shanks to load (None → all from .yaml or glob).
+        include_noise:
+            Include cluster IDs 0 (noise) and 1 (MUA).
+        include_waveforms:
+            Also load waveform snippets from .spk.N files.
+        samplerate:
+            Recording sample rate.  Read from .yaml if None.
+        """
+        from neurobox.io import load_clu_res, load_par
+
+        res_arr, clu_arr, shank_map = load_clu_res(
+            file_base,
+            shank_groups   = shank_groups,
+            include_noise  = include_noise,
+            as_seconds     = True,
+            sampling_rate  = samplerate,
+        )
+
+        if samplerate is None:
+            try:
+                par = load_par(str(file_base))
+                samplerate = float(par.acquisitionSystem.samplingRate)
+            except Exception:
+                samplerate = 20000.0
+
+        spk_wf = None
+        if include_waveforms:
+            # Load per-shank waveforms and concatenate
+            from neurobox.io import load_spk_from_par
+            try:
+                par = load_par(str(file_base))
+                chunks = []
+                for shk in (shank_groups or list(range(1, 9))):
+                    try:
+                        chunks.append(load_spk_from_par(file_base, shk, par))
+                    except FileNotFoundError:
+                        pass
+                if chunks:
+                    # Chunks are per-shank; concat naively (shape may differ
+                    # across shanks if n_channels differs — pad with zeros)
+                    max_samp = max(c.shape[1] for c in chunks)
+                    max_chan = max(c.shape[2] for c in chunks)
+                    padded   = []
+                    for c in chunks:
+                        p = np.zeros((c.shape[0], max_samp, max_chan), dtype=c.dtype)
+                        p[:, :c.shape[1], :c.shape[2]] = c
+                        padded.append(p)
+                    spk_wf = np.concatenate(padded, axis=0)
+            except Exception:
+                pass
+
+        return cls(
+            res        = res_arr,
+            clu        = clu_arr,
+            map_       = shank_map,
+            samplerate = samplerate,
+            spk        = spk_wf,
+        )
+
+    def create(self, *args, **kwargs) -> "NBSpk":
+        """Alias for load()."""
+        return NBSpk.load(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _within_periods(times: np.ndarray, periods: np.ndarray) -> np.ndarray:
+    """Boolean mask: True where times fall within any period."""
+    mask = np.zeros(len(times), dtype=bool)
+    for s, e in periods:
+        mask |= (times >= s) & (times < e)
+    return mask
+
+
+def _restrict_times(times: np.ndarray, epoch: "NBEpoch") -> np.ndarray:
+    periods = epoch._as_periods()
+    return times[_within_periods(times, periods)]
