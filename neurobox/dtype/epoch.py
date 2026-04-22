@@ -26,8 +26,6 @@ will drop / truncate periods that fall outside it.
 
 from __future__ import annotations
 
-import re
-from typing import Sequence
 
 import numpy as np
 
@@ -355,15 +353,16 @@ class NBEpoch:
 
         For 'periods' mode this is a metadata-only change (the float64
         second values are unchanged).  For 'mask' mode the mask is
-        up/downsampled using nearest-neighbour.
+        up/downsampled using nearest-neighbour, with each output sample
+        mapped to the *closest* input sample (round, not ceiling).
         """
         result = self.copy()
         if self.mode == "mask" and new_samplerate != self.samplerate:
             old_n = len(self.data)
             new_n = int(round(old_n / self.samplerate * new_samplerate))
-            t_old = np.arange(old_n) / self.samplerate
+            # Nearest-neighbour: map each output time to the closest input index
             t_new = np.arange(new_n) / new_samplerate
-            idx   = np.searchsorted(t_old, t_new, side="left").clip(0, old_n - 1)
+            idx   = np.round(t_new * self.samplerate).astype(int).clip(0, old_n - 1)
             result.data = self.data[idx]
         result.samplerate = new_samplerate
         return result
@@ -434,19 +433,21 @@ class NBEpoch:
 # Convenience function
 # ---------------------------------------------------------------------------
 
-def select_periods(data: np.ndarray, periods: np.ndarray,
-                   samplerate: float) -> np.ndarray:
+def select_periods(data: np.ndarray, periods, samplerate: float) -> np.ndarray:
     """Extract and concatenate rows of *data* that fall within *periods*.
 
-    This is the Python equivalent of MTA's ``SelectPeriods``.
+    Python equivalent of MTA's ``SelectPeriods``.
 
     Parameters
     ----------
     data:
         Time-series array, shape ``(T, ...)``.  Time is axis 0.
     periods:
-        ``(N, 2)`` float64 array of ``[start_sec, stop_sec]`` or
-        integer sample indices when *samplerate* == 1.
+        Any of:
+
+        * ``(N, 2)`` float64 array of ``[start_sec, stop_sec]``
+        * :class:`NBEpoch` object (converted via ``._as_periods()``)
+
     samplerate:
         Sample rate of *data*.
 
@@ -455,6 +456,11 @@ def select_periods(data: np.ndarray, periods: np.ndarray,
     out : np.ndarray
         Concatenated segments along axis 0.
     """
+    # Accept NBEpoch directly
+    if isinstance(periods, NBEpoch):
+        periods = periods._as_periods()
+    periods = np.asarray(periods, dtype=np.float64)
+
     segments: list[np.ndarray] = []
     for s, e in periods:
         i0 = int(np.round(s * samplerate))

@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neurobox"
+version = "0.1.0"
+description = "Analysis toolbox for silicon-probe electrophysiology, integrated with neurosuite-3"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+
+authors = [
+    { name = "Gravios" },
+]
+
+keywords = [
+    "neuroscience",
+    "electrophysiology",
+    "silicon-probe",
+    "LFP",
+    "spike-sorting",
+    "motion-capture",
+    "neurosuite",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+]
+
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+]
+full = [
+    "pandas>=2.0",        # load_position_motive_csv
+    "scikit-learn>=1.4",  # neural_scattering integration
+]
+
+[project.urls]
+Repository = "https://github.com/Gravios/neurobox"
+Issues     = "https://github.com/Gravios/neurobox/issues"
+
+[project.scripts]
+nb-configure  = "neurobox.config.config:_cli_configure"
+nb-link       = "neurobox.config.config:_cli_link"
+nb-link-batch = "neurobox.config.config:_cli_link_batch"
+
+[tool.setuptools.packages.find]
+where   = ["."]
+include = ["neurobox*"]
+exclude = ["tests*", "NeuralynxIO*"]
+
+[tool.setuptools.package-data]
+"neurobox" = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts   = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["neurobox"]
+omit   = ["tests/*"]
