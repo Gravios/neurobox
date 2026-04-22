@@ -184,35 +184,81 @@ class NBSession:
     def create(
         self,
         data_loggers: list[str] | None = None,
+        save_xyz:      bool  = True,
+        tolerance_sec: float = 0.2,
         **kwargs,
     ) -> "NBSession":
         """Synchronise raw data and populate session fields.
 
-        Dispatches to the appropriate sync pipeline based on
-        *data_loggers*.  The naming convention mirrors MTA:
+        This is a one-time operation per session.  It reads the raw
+        ephys and tracking files, aligns them to a common clock, saves
+        the processed position data, and writes a ``.ses.pkl``
+        checkpoint so subsequent calls just load the checkpoint.
 
-        ``['nlx', 'vicon']``           → sync_nlx_vicon  (event-based)
-        ``['nlx', 'optitrack']``       → sync_nlx_vicon  (event-based)
-        ``['nlx', 'spots']``           → sync_nlx_spots
-        ``['nlx', 'whl']``             → sync_nlx_whl
-        ``['openephys', 'optitrack']`` → sync_openephys_optitrack (pulse)
-        ``['openephys', 'vicon']``     → sync_openephys_vicon     (pulse)
+        Dispatches to a sync pipeline based on *data_loggers*:
+
+        .. code-block:: text
+
+            ['nlx', 'vicon']            sync_nlx_vicon      (TTL events)
+            ['nlx', 'optitrack']        sync_nlx_vicon      (TTL events)
+            ['nlx', 'motive']           sync_nlx_vicon      (TTL events)
+            ['nlx', 'spots']            sync_nlx_spots      (binary .pos)
+            ['nlx', 'whl']              sync_nlx_whl        (on-clock .whl)
+            ['openephys', 'optitrack']  sync_openephys_optitrack  (pulse ch)
+            ['openephys', 'vicon']      sync_openephys_vicon      (pulse ch)
 
         Parameters
         ----------
         data_loggers:
             List of system names identifying the primary (ephys) and
-            secondary (tracking/behavioural) systems.
+            secondary (tracking) acquisition systems.
+        save_xyz:
+            Save the assembled position array to
+            ``<spath>/<filebase>.pos.npz`` (default True).
+        tolerance_sec:
+            Maximum duration mismatch tolerated when matching tracking
+            data chunks to ephys windows (default 0.2 s).
         **kwargs:
-            Passed through to the chosen sync function.
+            Forwarded to the chosen pipeline function.
 
-            NLX pipelines:   ``ttl_value``, ``stop_ttl``
-            OE pipelines:    ``sync_channel``, ``threshold``
+            NLX pipelines
+              ``ttl_value`` (str)   TTL label marking mocap start
+              ``stop_ttl``  (str)   TTL label marking mocap stop
+
+            OpenEphys pipelines
+              ``sync_channel`` (int)   ADC channel carrying the sync pulse
+              ``threshold``    (float) normalised detection threshold (0-1)
+
+        Returns
+        -------
+        self
+
+        Examples
+        --------
+        >>> session = NBSession('sirotaA-jg-05-20120316', maze='cof')
+        >>> session.create(['nlx', 'vicon'], ttl_value='0x0040')
+
+        >>> session.create(['openephys', 'optitrack'], sync_channel=17)
         """
         from neurobox.dtype.sync_pipelines import dispatch
 
         if data_loggers is None:
-            raise ValueError("data_loggers must be specified, e.g. ['nlx','vicon']")
+            raise ValueError(
+                "data_loggers must be specified, e.g. ['nlx', 'vicon'].\n"
+                "Supported primaries  : nlx, neuralynx, openephys, oephys\n"
+                "Supported secondaries: vicon, optitrack, motive, spots, whl"
+            )
+
+        # Ensure par is loaded before dispatching
+        if self.par is None:
+            self._init_par()
+
+        # Ensure the project session directory exists
+        self.spath.mkdir(parents=True, exist_ok=True)
+
+        # Inject shared kwargs that every pipeline accepts
+        kwargs.setdefault("save_xyz",      save_xyz)
+        kwargs.setdefault("tolerance_sec", tolerance_sec)
 
         dispatch(self, data_loggers, **kwargs)
         self.save()

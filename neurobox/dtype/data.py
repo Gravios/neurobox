@@ -26,6 +26,28 @@ import numpy as np
 from neurobox.dtype.epoch import NBEpoch, select_periods
 
 
+# ---------------------------------------------------------------------------
+# Internal helper
+# ---------------------------------------------------------------------------
+
+def _trim_or_pad(arr: np.ndarray, target_n: int) -> np.ndarray:
+    """Trim or zero-pad *arr* along axis 0 to exactly *target_n* samples.
+
+    Used by ``NBData.resample`` to match output length to a target object
+    (equivalent to the tail-correction in MTA's MTAData.resample).
+    """
+    n = arr.shape[0]
+    if n == target_n:
+        return arr
+    if n > target_n:
+        return arr[:target_n]
+    # Pad with zeros
+    pad = np.zeros((target_n - n,) + arr.shape[1:], dtype=arr.dtype)
+    return np.concatenate([arr, pad], axis=0)
+
+
+
+
 class NBData(ABC):
     """Abstract base for neurobox data containers.
 
@@ -146,37 +168,66 @@ class NBData(ABC):
     def __getitem__(self, idx):
         """Index into the data array.
 
-        If the first index element is an ``(N, 2)`` array of
-        ``[start_sec, stop_sec]`` periods, the corresponding segments
-        are extracted and concatenated along axis 0 (equivalent to
-        MTA's ``SelectPeriods``).
+        **Period-based selection** (equivalent to MTA's ``SelectPeriods``):
+        triggered when the first index is an :class:`NBEpoch` or an
+        ``(N, 2)`` *float64* array of ``[start_sec, stop_sec]`` pairs.
 
-        For everything else, the index is passed directly to the numpy
-        array.
+        When additional axes are given (e.g. ``lfp[epoch, :2]`` or
+        ``xyz[epoch, 'head']``), the non-time axes are applied to the
+        underlying array *first* (with ``:`` replacing the time axis),
+        and period selection is then applied to that result — exactly
+        mirroring MTA's ``subsref``::
+
+            Sa.subs{1} = ':';
+            Data = SelectPeriods(builtin('subsref',Data.data,Sa), S.subs{1}, 'c');
+
+        An NBEpoch is resampled to ``self.samplerate`` before conversion
+        to period pairs when sample rates differ.
+
+        **Normal numpy indexing** for all other index types.
 
         Examples
         --------
-        >>> data_in_walk = obj[stc['walk'].data]          # period-select
-        >>> channel_3    = obj[:, 2]                      # normal numpy
-        >>> obj[np.array([[1.0, 2.0], [5.0, 6.0]])]      # two windows
+        >>> lfp[stc['walk']]                  # NBEpoch — all channels
+        >>> lfp[stc['walk'], :2]              # first 2 channels only
+        >>> xyz[stc['walk'], :, [0, 2]]       # x and z dims of all markers
+        >>> lfp[stc['walk'].data]             # (N,2) float64 — same
+        >>> lfp[:, 2]                         # channel slice — normal numpy
         """
         if self._data is None:
             raise IndexError("Data has not been loaded yet.")
 
-        if isinstance(idx, tuple):
-            first = idx[0]
-        else:
-            first = idx
+        from neurobox.dtype.epoch import NBEpoch as _NBEpoch
 
-        # Period-based selection on first axis
-        if (isinstance(first, np.ndarray)
-                and first.ndim == 2 and first.shape[1] == 2):
-            selected = select_periods(self._data, first, self.samplerate)
-            if isinstance(idx, tuple) and len(idx) > 1:
-                return selected[(slice(None),) + idx[1:]]
-            return selected
+        first, rest = (idx[0], idx[1:]) if isinstance(idx, tuple) else (idx, ())
 
-        # Normal numpy indexing
+        # ── Determine if this is a period-select on the time axis ──── #
+        is_epoch = isinstance(first, _NBEpoch)
+        is_period_array = (
+            isinstance(first, np.ndarray)
+            and first.ndim == 2 and first.shape[1] == 2
+            and np.issubdtype(first.dtype, np.floating)
+        )
+
+        if is_epoch or is_period_array:
+            # MTA subsref order:
+            #   1. Apply non-time indices with ':' for time axis
+            #   2. Period-select the result along axis 0
+            if rest:
+                base = self._data[(slice(None),) + rest]
+            else:
+                base = self._data
+
+            if is_epoch:
+                ep      = (first if first.samplerate == self.samplerate
+                           else first.resample(self.samplerate))
+                periods = ep._as_periods()
+            else:
+                periods = first
+
+            return select_periods(base, periods, self.samplerate)
+
+        # ── Normal numpy indexing ─────────────────────────────────────── #
         return self._data[idx]
 
     # ------------------------------------------------------------------ #
@@ -252,54 +303,88 @@ class NBData(ABC):
     # Resampling                                                           #
     # ------------------------------------------------------------------ #
 
-    def resample(self, new_samplerate: float,
-                 method: str = "spline") -> "NBData":
-        """Resample the time series to *new_samplerate* Hz.
+    def resample(self, target, method: str = "poly") -> "NBData":
+        """Resample the time series to a new sample rate.
+
+        Mirrors the MTA ``MTAData.resample`` API:
+
+        * When *target* is a **number**, resample to that Hz.
+        * When *target* is another **NBData object**, resample to match
+          its ``samplerate`` and trim/pad to its ``n_samples`` exactly.
+
+        Anti-aliasing
+        -------------
+        When downsampling, a Butterworth lowpass at ``new_sr / 2`` is
+        applied before interpolation — mirroring the ``ButFilter`` call
+        in MTA's ``MTAData.resample``.  ``'poly'`` (default) uses
+        ``scipy.signal.resample_poly`` which is inherently anti-aliased
+        via a Kaiser-windowed FIR filter.  ``'spline'`` pre-filters
+        manually then uses cubic spline interpolation.
 
         Parameters
         ----------
-        new_samplerate:
-            Target sample rate in Hz.
+        target:
+            New sample rate in Hz (``float``), **or** another
+            ``NBData`` object to resample to match.
         method:
-            ``'spline'`` (default) uses ``scipy.interpolate.interp1d``
-            with cubic spline.  ``'poly'`` uses
-            ``scipy.signal.resample_poly`` which is more efficient for
-            large factors.
+            ``'poly'`` (default) — efficient for integer ratios.
+            ``'spline'`` — cubic spline, better for small non-integer
+            rate ratios.
+
+        Returns
+        -------
+        self  (modified in-place)
         """
-        if self._data is None or new_samplerate == self.samplerate:
+        if self._data is None or self.type_ != "TimeSeries":
             return self
 
-        if self.type_ == "TimeSeries":
-            n_in  = self._data.shape[0]
-            n_out = int(round(n_in / self.samplerate * new_samplerate))
-            orig_shape = self._data.shape
-            d = self._data.astype(np.float64).reshape(n_in, -1)
+        # Resolve target samplerate and optional output length
+        if isinstance(target, NBData):
+            new_samplerate = float(target.samplerate)
+            target_n       = target.n_samples if target.n_samples > 0 else None
+        else:
+            new_samplerate = float(target)
+            target_n       = None
 
-            if method == "poly":
-                from math import gcd
-                from scipy.signal import resample_poly
-                g  = gcd(int(new_samplerate * 100), int(self.samplerate * 100))
-                up = int(new_samplerate * 100 // g)
-                dn = int(self.samplerate  * 100 // g)
-                d  = resample_poly(d, up, dn, axis=0)
-                d  = d[:n_out]
-            else:
-                from scipy.interpolate import interp1d
-                t_in  = np.linspace(0, 1, n_in)
-                t_out = np.linspace(0, 1, n_out)
-                f     = interp1d(t_in, d, kind="cubic", axis=0,
-                                 fill_value="extrapolate")
-                d     = f(t_out)
+        if new_samplerate == self.samplerate:
+            if target_n is not None and target_n != self.n_samples:
+                self._data = _trim_or_pad(self._data, target_n)
+            return self
 
-            new_shape = (n_out,) + orig_shape[1:]
-            self._data = d[:n_out].reshape(new_shape)
-            self.samplerate = new_samplerate
+        n_in       = self._data.shape[0]
+        orig_shape = self._data.shape
+        d          = self._data.astype(np.float64).reshape(n_in, -1)
 
-        elif self.type_ == "TimePeriods":
-            # For period data, rescale the indices
-            self._data = self._data * new_samplerate / self.samplerate
-            self.samplerate = new_samplerate
+        n_out = (target_n if target_n is not None
+                 else int(round(n_in / self.samplerate * new_samplerate)))
 
+        if method == "poly":
+            from math import gcd
+            from scipy.signal import resample_poly
+            # ×1000 to handle sub-Hz rates like 119.881 Hz (Vicon)
+            scale = 1000
+            g  = gcd(int(round(new_samplerate * scale)),
+                     int(round(self.samplerate  * scale)))
+            up = int(round(new_samplerate * scale)) // g
+            dn = int(round(self.samplerate  * scale)) // g
+            d  = resample_poly(d, up, dn, axis=0)
+        else:
+            # Anti-alias: lowpass at new Nyquist before downsampling
+            if new_samplerate < self.samplerate:
+                from scipy.signal import butter, sosfiltfilt
+                nyq = self.samplerate / 2.0
+                wn  = min((new_samplerate / 2.0) / nyq, 0.9999)
+                sos = butter(3, wn, btype="low", output="sos")
+                d   = sosfiltfilt(sos, d, axis=0)
+            from scipy.interpolate import interp1d
+            t_in  = np.linspace(0, 1, n_in)
+            t_out = np.linspace(0, 1, n_out)
+            d     = interp1d(t_in, d, kind="cubic", axis=0,
+                             fill_value="extrapolate")(t_out)
+
+        d = _trim_or_pad(d, n_out)
+        self._data      = d.reshape((n_out,) + orig_shape[1:])
+        self.samplerate = new_samplerate
         return self
 
     # ------------------------------------------------------------------ #

@@ -202,6 +202,17 @@ class NBSpk:
         """
         from neurobox.io import load_clu_res, load_par
 
+        # Load par once upfront so we can share it with waveform loading
+        par = None
+        if samplerate is None or include_waveforms:
+            try:
+                par = load_par(str(file_base))
+            except Exception:
+                pass
+        if samplerate is None:
+            samplerate = (float(par.acquisitionSystem.samplingRate)
+                          if par is not None else 20000.0)
+
         res_arr, clu_arr, shank_map = load_clu_res(
             file_base,
             shank_groups   = shank_groups,
@@ -210,19 +221,12 @@ class NBSpk:
             sampling_rate  = samplerate,
         )
 
-        if samplerate is None:
-            try:
-                par = load_par(str(file_base))
-                samplerate = float(par.acquisitionSystem.samplingRate)
-            except Exception:
-                samplerate = 20000.0
-
         spk_wf = None
         if include_waveforms:
-            # Load per-shank waveforms and concatenate
             from neurobox.io import load_spk_from_par
             try:
-                par = load_par(str(file_base))
+                if par is None:
+                    par = load_par(str(file_base))
                 chunks = []
                 for shk in (shank_groups or list(range(1, 9))):
                     try:
@@ -261,10 +265,18 @@ class NBSpk:
 # ---------------------------------------------------------------------------
 
 def _within_periods(times: np.ndarray, periods: np.ndarray) -> np.ndarray:
-    """Boolean mask: True where times fall within any period."""
+    """Boolean mask: True where times fall within any period.
+
+    Requires *times* to be sorted ascending (guaranteed after
+    ``load_clu_res``).  Uses ``np.searchsorted`` for
+    O((N + M) log N) complexity instead of O(N × M).
+    """
     mask = np.zeros(len(times), dtype=bool)
     for s, e in periods:
-        mask |= (times >= s) & (times < e)
+        i0 = int(np.searchsorted(times, s, side="left"))
+        i1 = int(np.searchsorted(times, e, side="left"))
+        if i1 > i0:
+            mask[i0:i1] = True
     return mask
 
 
