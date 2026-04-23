@@ -89,20 +89,38 @@ class NeuronQualityResult:
     spike_width_right_ms:  float | None = None
     time_symmetry:         float | None = None
     mean_firing_rate:      float | None = None
+    yaml_quality:          str | None   = None
+    yaml_cell_type:        str | None   = None
+    yaml_structure:        str | None   = None
+    yaml_isolation_distance: float | None = None
 
     def is_single_unit(
         self,
         max_isi_contamination: float = 0.02,
         min_snr:               float = 2.0,
         min_spikes:            int   = 100,
+        good_quality_tags: frozenset[str] | None = None,
     ) -> bool:
-        """Return True if this unit passes basic single-unit criteria."""
+        """Return True if this unit passes basic single-unit criteria.
+
+        If ``yaml_quality`` is set and *good_quality_tags* is provided (or
+        a default set is used), the YAML tag is required to be in the
+        accepted set — it serves as a hard veto.
+        """
         if self.n_spikes < min_spikes:
             return False
         if self.isi_contamination > max_isi_contamination:
             return False
         if self.snr is not None and self.snr < min_snr:
             return False
+        # If manual quality is available, require it to be a single-unit tag
+        if self.yaml_quality is not None:
+            tags = good_quality_tags or frozenset(
+                {"good", "great", "excellent", "su", "single_unit",
+                 "single-unit", "accepted"}
+            )
+            if self.yaml_quality.strip().lower() not in tags:
+                return False
         return True
 
     def __repr__(self) -> str:
@@ -115,6 +133,8 @@ class NeuronQualityResult:
             parts.append(f"SNR={self.snr:.1f}")
         if self.spike_width_ms is not None:
             parts.append(f"w={self.spike_width_ms:.3f}ms")
+        if self.yaml_quality is not None:
+            parts.append(f"q={self.yaml_quality!r}")
         return f"NQR({', '.join(parts)})"
 
 
@@ -334,12 +354,19 @@ def neuron_quality(
         mfr = (float(n_spikes / duration_sec)
                if duration_sec and duration_sec > 0 else None)
 
+        # Merge YAML curation annotation if available
+        ann = spk.annotation_for(int(uid)) if hasattr(spk, 'annotation_for') else None
+
         results[int(uid)] = NeuronQualityResult(
-            unit_id               = int(uid),
-            shank                 = shank,
-            n_spikes              = n_spikes,
-            isi_contamination     = isi,
-            mean_firing_rate      = mfr,
+            unit_id                  = int(uid),
+            shank                    = shank,
+            n_spikes                 = n_spikes,
+            isi_contamination        = isi,
+            mean_firing_rate         = mfr,
+            yaml_quality             = ann.quality             if ann else None,
+            yaml_cell_type           = ann.cell_type           if ann else None,
+            yaml_structure           = ann.structure           if ann else None,
+            yaml_isolation_distance  = ann.isolation_distance  if ann else None,
             **wf_metrics,
         )
 
@@ -362,8 +389,11 @@ def print_neuron_quality_report(
         print("  (no units)")
         return
 
-    header = (f"  {'Unit':>5}  {'Shank':>5}  {'N spk':>6}  "
-              f"{'ISI%':>6}  {'SNR':>6}  {'W(ms)':>6}  {'FR(Hz)':>6}  OK")
+    has_yaml = any(r.yaml_quality is not None for r in nq.values())
+    q_col    = f"  {'Quality':>9}" if has_yaml else ""
+    header   = (f"  {'Unit':>5}  {'Shank':>5}  {'N spk':>6}  "
+                f"{'ISI%':>6}  {'SNR':>6}  {'W(ms)':>6}  {'FR(Hz)':>6}"
+                + q_col + "  OK")
     print(header)
     print("  " + "-" * (len(header) - 2))
 
@@ -371,12 +401,13 @@ def print_neuron_quality_report(
     for uid, r in sorted(nq.items()):
         ok   = r.is_single_unit(max_isi, min_snr, min_spikes)
         n_ok += int(ok)
-        snr_s  = f"{r.snr:.1f}"  if r.snr  is not None else "  N/A"
-        w_s    = f"{r.spike_width_ms:.3f}" if r.spike_width_ms is not None else "  N/A"
-        fr_s   = f"{r.mean_firing_rate:.1f}" if r.mean_firing_rate is not None else "  N/A"
+        snr_s = f"{r.snr:.1f}"  if r.snr  is not None else "  N/A"
+        w_s   = f"{r.spike_width_ms:.3f}" if r.spike_width_ms is not None else "  N/A"
+        fr_s  = f"{r.mean_firing_rate:.1f}" if r.mean_firing_rate is not None else "  N/A"
+        q_s   = f"  {(r.yaml_quality or '-'):>9}" if has_yaml else ""
         print(f"  {uid:5d}  {str(r.shank or '-'):>5}  {r.n_spikes:6d}  "
               f"{r.isi_contamination*100:5.1f}%  {snr_s:>6}  {w_s:>6}  "
-              f"{fr_s:>6}  {'✓' if ok else '✗'}")
+              f"{fr_s:>6}{q_s}  {'✓' if ok else '✗'}")
 
     print(f"\n  {n_ok}/{len(nq)} units pass quality criteria "
           f"(ISI<{max_isi*100:.0f}%"

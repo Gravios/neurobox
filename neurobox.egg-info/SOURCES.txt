@@ -35,6 +35,7 @@ neurobox/io/load_par.py
 neurobox/io/load_position_motive_csv.py
 neurobox/io/load_processed_mat.py
 neurobox/io/load_spk.py
+neurobox/io/load_units.py
 neurobox/io/load_xml.py
 neurobox/io/load_yaml.py
 neurobox/io/parse_events.py
@@ -43,6 +44,8 @@ neurobox/utils/__init__.py
 neurobox/utils/copytree.py
 neurobox/utils/sync/__init__.py
 neurobox/utils/sync/sync_nlx_vicon.py
+scripts/__init__.py
+scripts/convert_session_list.py
 tests/test_config.py
 tests/test_dtype.py
 tests/test_io.py

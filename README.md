@@ -89,7 +89,36 @@ walk_epoch = stc["walk"]
 times_walk = spk[5, walk_epoch]
 
 # Per-unit dict (compatible with neural_scattering)
-spikes_dict = spk.by_unit()
+spikes_dict = spk.by_unit  # property: dict[unit_id → spike_times_sec]
+```
+
+### Unit annotations
+
+After spike sorting with klusters or phy, quality tags written to the
+session YAML (`quality: good`, `type: pyr`, `structure: CA1`, etc.) are
+loaded automatically when you call `session.load("spk")`:
+
+```python
+spk = session.load("spk")
+
+# Get IDs of manually curated single units
+good_ids = spk.annotated_unit_ids(quality="good")
+
+# Filter by cell type or anatomy
+pyr_ids   = spk.annotated_unit_ids(quality="good", cell_type="pyr")
+ca1_ids   = spk.annotated_unit_ids(structure="CA1")
+
+# Inspect one unit's annotation
+ann = spk.annotation_for(good_ids[0])
+print(ann.quality, ann.cell_type, ann.isolation_distance)
+
+# Compute quality metrics (ISI contamination, SNR, spike width)
+from neurobox.analysis import neuron_quality, print_neuron_quality_report
+nq = neuron_quality(session)
+print_neuron_quality_report(nq)
+
+# is_single_unit() uses YAML quality as a hard veto when present
+good_units = [uid for uid, r in nq.items() if r.is_single_unit()]
 ```
 
 ### LFP

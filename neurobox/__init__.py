@@ -44,6 +44,7 @@ from neurobox.io import (
     load_par,
     load_yaml,
     get_channel_groups,
+    get_lfp_samplerate,
     load_binary,
     load_clu_res,
     spikes_by_unit,
@@ -76,6 +77,7 @@ from neurobox.pipelines import (
     batch_trial_setup,
 )
 from neurobox.analysis import neuron_quality, NeuronQualityResult
+from neurobox.io import load_units, UnitAnnotation, map_annotations_to_global_ids
 
 __all__ = [
     "__version__",
@@ -98,6 +100,7 @@ __all__ = [
     "load_par",
     "load_yaml",
     "get_channel_groups",
+    "get_lfp_samplerate",
     "load_binary",
     "load_clu_res",
     "spikes_by_unit",
@@ -128,4 +131,8 @@ __all__ = [
     # analysis
     "neuron_quality",
     "NeuronQualityResult",
+    # unit annotations
+    "load_units",
+    "UnitAnnotation",
+    "map_annotations_to_global_ids",
 ]

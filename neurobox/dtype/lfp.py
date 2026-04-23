@@ -120,12 +120,10 @@ class NBDlfp(NBData):
         if channels is None:
             channels = self.channels or list(range(int(par.acquisitionSystem.nChannels)))
 
-        # Set sample rate from par if not already set
+        # Set sample rate from par
         if self.ext == "lfp":
-            try:
-                self.samplerate = float(par.lfpSampleRate)
-            except Exception:
-                pass  # keep existing
+            from neurobox.io.load_yaml import get_lfp_samplerate
+            self.samplerate = get_lfp_samplerate(par, default=self.samplerate)
         else:
             try:
                 self.samplerate = float(par.acquisitionSystem.samplingRate)

@@ -128,10 +128,8 @@ def _load_record_sync(session) -> tuple[float, float, float]:
 
     par = session.par
     session.samplerate = float(par.acquisitionSystem.samplingRate)
-    lfp_sr = float(
-        getattr(par, "lfpSampleRate",
-                getattr(par, "lfp_sample_rate", 1250.0)) or 1250.0
-    )
+    from neurobox.io.load_yaml import get_lfp_samplerate
+    lfp_sr = get_lfp_samplerate(par)
 
     # ── Find .lfp file ─────────────────────────────────────────────────── #
     lfp_file = _find_file(session, f"{session.name}.lfp")

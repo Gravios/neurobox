@@ -58,13 +58,14 @@ Repository = "https://github.com/Gravios/neurobox"
 Issues     = "https://github.com/Gravios/neurobox/issues"
 
 [project.scripts]
-nb-configure  = "neurobox.config.config:_cli_configure"
-nb-link       = "neurobox.config.config:_cli_link"
-nb-link-batch = "neurobox.config.config:_cli_link_batch"
+nb-configure         = "neurobox.config.config:_cli_configure"
+nb-link              = "neurobox.config.config:_cli_link"
+nb-link-batch        = "neurobox.config.config:_cli_link_batch"
+nb-convert-sessions  = "scripts.convert_session_list:_cli_main"
 
 [tool.setuptools.packages.find]
 where   = ["."]
-include = ["neurobox*"]
+include = ["neurobox*", "scripts*"]
 exclude = ["tests*", "NeuralynxIO*"]
 
 [tool.setuptools.package-data]
@@ -73,7 +74,7 @@ exclude = ["tests*", "NeuralynxIO*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts   = "-v --tb=short"
+addopts   = "-v --tb=short --ignore=tests/test_pyqtgraph.py --ignore=tests/test_pyqtgraph_bkp.py"
 
 [tool.coverage.run]
 source = ["neurobox"]

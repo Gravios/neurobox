@@ -1,47 +1,48 @@
 """
 load_yaml.py
 ============
-Load neurosuite-3 YAML session parameter files into a :class:`Struct`
-interface compatible with the existing :func:`load_xml` workflow.
+Load neurosuite-3 / ndManager-yaml session parameter files into a
+:class:`Struct` tree.
 
-YAML parameter file layout (neurosuite-3)
------------------------------------------
+YAML parameter file layout (ndManager-yaml format)
+---------------------------------------------------
 ::
 
     acquisitionSystem:
-      nChannels: 64
+      nChannels: 96
       nBits: 16
-      samplingRate: 20000
+      samplingRate: 32552
       voltageRange: 20
       amplification: 1000
       offset: 0
 
-    spikeDetection:
-      channelGroups:
-        - channels: [0, 1, 2, 3, 4, 5, 6, 7]
-          nSamples: 52
-          peakSampleIndex: 26
-          nFeatures: 3
-          probeId: 0
-          shankIndex: 0
+    fieldPotentials:
+      lfpSamplingRate: 1250
 
     anatomicalDescription:
       channelGroups:
         - channels:
             - {id: 0, skip: 0}
+            - {id: 1, skip: 0}
             ...
-          probeId: 0
-          shankIndex: 0
+
+    spikeDetection:
+      channelGroups:
+        - channels: [0, 1, 2, 3, 4, 5, 6, 7]
+          nSamples: 41
+          peakSampleIndex: 20
+          nFeatures: 3
 
     probes:
-      - probeId: 0
-        probeFile: buzsaki64.probe
+      - id: 0
+        probeFile: /path/to/Buzsaki64L.probe
+        label: Buzsaki64L
         channelOffset: 0
         anatomicalGroups: [1, 2, 3, 4, 5, 6, 7, 8]
 
-The returned :class:`Struct` exposes the top-level keys as attributes.
-Nested dicts become nested :class:`Struct` objects; lists of dicts
-become lists of :class:`Struct` objects; primitive values are left as-is.
+The returned :class:`Struct` exposes every top-level key as an attribute.
+Nested dicts become nested :class:`Struct` objects; lists of dicts become
+lists of :class:`Struct` objects; primitive values are left as-is.
 """
 
 from __future__ import annotations
@@ -87,12 +88,13 @@ def load_yaml(file_name: str | Path) -> Struct:
     par : Struct
         Top-level parameter struct.  Key attributes:
 
-        ``par.acquisitionSystem.nChannels``   — total ADC channel count
-        ``par.acquisitionSystem.samplingRate`` — wideband sample rate (Hz)
-        ``par.acquisitionSystem.nBits``        — ADC resolution (usually 16)
-        ``par.spikeDetection.channelGroups``   — list of Struct, one per shank
+        ``par.acquisitionSystem.nChannels``        — total ADC channel count
+        ``par.acquisitionSystem.samplingRate``      — wideband sample rate (Hz)
+        ``par.acquisitionSystem.nBits``             — ADC resolution (usually 16)
+        ``par.fieldPotentials.lfpSamplingRate``     — LFP sample rate (Hz)
+        ``par.spikeDetection.channelGroups``        — list of Struct, one per shank
         ``par.anatomicalDescription.channelGroups`` — list of Struct, one per shank
-        ``par.probes``                          — list of Struct (may be absent)
+        ``par.probes``                              — list of Struct (probe metadata)
 
     Raises
     ------
@@ -107,6 +109,30 @@ def load_yaml(file_name: str | Path) -> Struct:
         raw = yaml.safe_load(fh) or {}
 
     return _to_struct(raw)
+
+
+def get_lfp_samplerate(par, default: float = 1250.0) -> float:
+    """Return the LFP sample rate from a parsed parameter Struct.
+
+    Reads ``par.fieldPotentials.lfpSamplingRate`` (ndManager-yaml format).
+
+    Parameters
+    ----------
+    par:
+        Parsed parameter Struct from :func:`load_par`.
+    default:
+        Fallback value when the key is absent (default 1250.0 Hz).
+
+    Returns
+    -------
+    float
+    """
+    fp = getattr(par, "fieldPotentials", None)
+    if fp is not None:
+        v = getattr(fp, "lfpSamplingRate", None)
+        if v is not None:
+            return float(v)
+    return default
 
 
 def get_channel_groups(par: Struct, source: str = "spike") -> list[list[int]]:
