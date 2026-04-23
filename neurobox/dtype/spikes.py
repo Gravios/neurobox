@@ -71,6 +71,7 @@ class NBSpk:
         self.fet: np.ndarray | None = fet
         self.spk: np.ndarray | None = spk
         self.type: str              = "TimePoints"
+        self.annotations: list      = []  # list[UnitAnnotation] from YAML units block
 
     # ------------------------------------------------------------------ #
     # Representation                                                       #
@@ -173,8 +174,104 @@ class NBSpk:
         return self.map[self.map[:, 1] == shank, 0].astype(np.int32)
 
     # ------------------------------------------------------------------ #
-    # Loading                                                              #
+    # Annotation helpers (YAML units: block)                               #
     # ------------------------------------------------------------------ #
+
+    def annotation_for(self, unit_id: int) -> "UnitAnnotation | None":
+        """Return the :class:`~neurobox.io.UnitAnnotation` for *unit_id*, or None.
+
+        Uses the ``global_id`` set by :func:`~neurobox.io.map_annotations_to_global_ids`.
+        If ``global_id`` was not resolved (e.g. par not available), falls back to
+        matching by ``(shank, local_cluster)`` via ``spk.map``.
+        """
+        if not self.annotations:
+            return None
+        # Try global_id match first
+        for ann in self.annotations:
+            if ann.global_id is not None and ann.global_id == unit_id:
+                return ann
+        # Fallback: match via spk.map (group = shank, cluster = local id)
+        row = self.map[self.map[:, 0] == unit_id]
+        if len(row) == 0:
+            return None
+        shank, local_clu = int(row[0, 1]), int(row[0, 2])
+        for ann in self.annotations:
+            if ann.group == shank and ann.cluster == local_clu:
+                return ann
+        return None
+
+    def annotated_unit_ids(
+        self,
+        quality: str | list[str] | None = None,
+        cell_type: str | None = None,
+        structure: str | None = None,
+        require_global_id: bool = True,
+    ) -> np.ndarray:
+        """Return unit IDs whose annotation matches the given filters.
+
+        Parameters
+        ----------
+        quality:
+            One or more quality strings to accept (case-insensitive).
+            ``None`` means accept any annotated unit regardless of quality.
+            Common values: ``'good'``, ``'great'``, ``'excellent'``.
+        cell_type:
+            Filter to units whose ``cell_type`` contains this substring
+            (case-insensitive).  E.g. ``'pyr'``, ``'int'``.
+        structure:
+            Filter to units whose ``structure`` contains this substring
+            (case-insensitive).  E.g. ``'CA1'``.
+        require_global_id:
+            If True (default), only return units whose ``global_id`` was
+            successfully mapped from the YAML to the spike data.
+
+        Returns
+        -------
+        np.ndarray of int
+            Sorted array of unit IDs that pass all filters.
+
+        Examples
+        --------
+        >>> good_ids = spk.annotated_unit_ids(quality='good')
+        >>> pyr_ids  = spk.annotated_unit_ids(cell_type='pyr')
+        >>> ca1_good = spk.annotated_unit_ids(quality='good', structure='CA1')
+        """
+        if not self.annotations:
+            return np.array([], dtype=np.int32)
+
+        # Normalise quality to a frozenset
+        if quality is not None:
+            if isinstance(quality, str):
+                quality_set = frozenset([quality.strip().lower()])
+            else:
+                quality_set = frozenset(q.strip().lower() for q in quality)
+        else:
+            quality_set = None
+
+        ids = []
+        for ann in self.annotations:
+            if require_global_id and ann.global_id is None:
+                continue
+
+            if quality_set is not None:
+                q = (ann.quality or "").strip().lower()
+                if q not in quality_set:
+                    continue
+
+            if cell_type is not None:
+                ct = (ann.cell_type or "").lower()
+                if cell_type.lower() not in ct:
+                    continue
+
+            if structure is not None:
+                st = (ann.structure or "").lower()
+                if structure.lower() not in st:
+                    continue
+
+            if ann.global_id is not None:
+                ids.append(ann.global_id)
+
+        return np.unique(np.array(ids, dtype=np.int32))
 
     @classmethod
     def load(
@@ -247,13 +344,27 @@ class NBSpk:
             except Exception:
                 pass
 
-        return cls(
+        obj = cls(
             res        = res_arr,
             clu        = clu_arr,
             map_       = shank_map,
             samplerate = samplerate,
             spk        = spk_wf,
         )
+
+        # Load curation annotations from the units: block (if present)
+        if par is not None:
+            try:
+                from neurobox.io.load_units import (
+                    load_units, map_annotations_to_global_ids,
+                )
+                obj.annotations = load_units(par)
+                if obj.annotations and len(shank_map):
+                    map_annotations_to_global_ids(obj.annotations, shank_map)
+            except Exception:
+                pass
+
+        return obj
 
     def create(self, *args, **kwargs) -> "NBSpk":
         """Alias for load()."""

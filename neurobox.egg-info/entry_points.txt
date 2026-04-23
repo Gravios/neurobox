@@ -1,4 +1,5 @@
 [console_scripts]
 nb-configure = neurobox.config.config:_cli_configure
+nb-convert-sessions = scripts.convert_session_list:_cli_main
 nb-link = neurobox.config.config:_cli_link
 nb-link-batch = neurobox.config.config:_cli_link_batch

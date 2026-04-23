@@ -63,7 +63,7 @@ Gap filling (motion-capture dropouts)::
 """
 
 from .load_par                 import load_par
-from .load_yaml                import load_yaml, get_channel_groups
+from .load_yaml                import load_yaml, get_channel_groups, get_lfp_samplerate
 from .load_binary              import load_binary
 from .load_clu_res             import load_clu_res, spikes_by_unit
 from .load_spk                 import load_spk, load_spk_from_par
@@ -75,12 +75,14 @@ from .load_processed_mat       import (load_processed_mat,
                                        concatenate_processed_mat)
 from .load_position_motive_csv import load_position_motive_csv
 from .xyz_fill_gaps            import fill_gaps, fill_xyz_gaps, detect_gaps
+from .load_units               import load_units, UnitAnnotation, map_annotations_to_global_ids
 
 __all__ = [
     # Parameter files
     "load_par",
     "load_yaml",
     "get_channel_groups",
+    "get_lfp_samplerate",
     # Binary signal data
     "load_binary",
     # Spikes
@@ -107,4 +109,8 @@ __all__ = [
     "fill_gaps",
     "fill_xyz_gaps",
     "detect_gaps",
+    # Unit annotations
+    "load_units",
+    "UnitAnnotation",
+    "map_annotations_to_global_ids",
 ]
