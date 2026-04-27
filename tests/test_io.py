@@ -13,7 +13,8 @@ acquisitionSystem:
   nChannels: 32
   nBits: 16
   samplingRate: 20000
-lfpSampleRate: 1250
+fieldPotentials:
+  lfpSamplingRate: 1250
 spikeDetection:
   channelGroups:
     - channels: [0,1,2,3,4,5,6,7]

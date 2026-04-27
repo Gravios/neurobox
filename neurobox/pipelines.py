@@ -554,11 +554,13 @@ def _label_basic_states(trial: "NBTrial") -> None:
 
     def _make_epoch(mask: np.ndarray, label: str, key: str) -> NBEpoch:
         from neurobox.dtype.epoch import NBEpoch
-        # Convert boolean mask to periods
         ep = NBEpoch.from_logical(mask.astype(bool), samplerate=sr,
                                   label=label, key=key)
-        # Remove very short events (< 0.5 s)
-        ep = ep.fillgaps(min_gap_sec=0.1)
+        # Merge gaps < 0.1 s, then drop periods < 0.5 s
+        ep = ep.fillgaps(gap_sec=0.1)
+        if not ep.isempty():
+            dur = ep.data[:, 1] - ep.data[:, 0]
+            ep.data = ep.data[dur >= 0.5]
         return ep
 
     walk_mask  = speed_smooth > walk_thr

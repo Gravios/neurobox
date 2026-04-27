@@ -114,7 +114,10 @@ def load_yaml(file_name: str | Path) -> Struct:
 def get_lfp_samplerate(par, default: float = 1250.0) -> float:
     """Return the LFP sample rate from a parsed parameter Struct.
 
-    Reads ``par.fieldPotentials.lfpSamplingRate`` (ndManager-yaml format).
+    Checks locations in priority order:
+
+    1. ``par.fieldPotentials.lfpSamplingRate`` — ndManager-yaml (new format)
+    2. ``par.lfpSampleRate``                   — legacy ndManager XML / old YAML
 
     Parameters
     ----------
@@ -127,11 +130,16 @@ def get_lfp_samplerate(par, default: float = 1250.0) -> float:
     -------
     float
     """
+    # 1. New YAML format
     fp = getattr(par, "fieldPotentials", None)
     if fp is not None:
         v = getattr(fp, "lfpSamplingRate", None)
         if v is not None:
             return float(v)
+    # 2. Legacy XML / old YAML flat key
+    v = getattr(par, "lfpSampleRate", None)
+    if v is not None:
+        return float(v)
     return default
 
 

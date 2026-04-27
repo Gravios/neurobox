@@ -340,3 +340,280 @@ def test_parse_spec_canonical_passthrough():
     s = _parse_spec({"sessionName": "testA-jg-01-20240101", "mazeName": "nor"})
     assert s["sessionName"] == "testA-jg-01-20240101"
     assert s["mazeName"]    == "nor"
+
+
+# ── load_units / UnitAnnotation ───────────────────────────────────────────── #
+
+class TestLoadUnits:
+    """Tests for load_units, UnitAnnotation, and map_annotations_to_global_ids."""
+
+    def _make_par(self, units_list):
+        """Build a minimal Struct with a units block."""
+        from neurobox.dtype.struct import Struct
+        par = Struct()
+        # Build units as a list of Structs (as load_yaml returns them)
+        unit_structs = []
+        for d in units_list:
+            s = Struct()
+            for k, v in d.items():
+                setattr(s, k, v)
+            unit_structs.append(s)
+        par.units = unit_structs
+        return par
+
+    def test_basic_parse(self):
+        from neurobox.io import load_units
+        par = self._make_par([
+            {"group": 7, "cluster": 4, "quality": "good",
+             "type": "pyr", "structure": "CA1",
+             "isolationDistance": 18.3, "notes": "clean"},
+        ])
+        units = load_units(par)
+        assert len(units) == 1
+        u = units[0]
+        assert u.group == 7
+        assert u.cluster == 4
+        assert u.quality == "good"
+        assert u.cell_type == "pyr"
+        assert u.structure == "CA1"
+        assert abs(u.isolation_distance - 18.3) < 1e-6
+        assert u.notes == "clean"
+
+    def test_absent_sentinels_become_none(self):
+        from neurobox.io import load_units
+        for sentinel in ("~", "--", "", None):
+            par = self._make_par([
+                {"group": 1, "cluster": 2, "quality": sentinel,
+                 "type": sentinel, "structure": sentinel,
+                 "isolationDistance": sentinel, "notes": sentinel},
+            ])
+            u = load_units(par)[0]
+            assert u.quality is None
+            assert u.cell_type is None
+            assert u.structure is None
+            assert u.isolation_distance is None
+            assert u.notes is None
+
+    def test_no_units_block_returns_empty(self):
+        from neurobox.io import load_units
+        from neurobox.dtype.struct import Struct
+        par = Struct()
+        assert load_units(par) == []
+
+    def test_multiple_units(self):
+        from neurobox.io import load_units
+        par = self._make_par([
+            {"group": 7, "cluster": 2, "quality": "good"},
+            {"group": 7, "cluster": 3, "quality": "mua"},
+            {"group": 10, "cluster": 2, "quality": "~"},
+        ])
+        units = load_units(par)
+        assert len(units) == 3
+        assert units[0].quality == "good"
+        assert units[1].quality == "mua"
+        assert units[2].quality is None
+
+    def test_is_good(self):
+        from neurobox.io import UnitAnnotation
+        assert UnitAnnotation(7, 2, quality="good").is_good()
+        assert UnitAnnotation(7, 2, quality="GOOD").is_good()
+        assert UnitAnnotation(7, 2, quality="great").is_good()
+        assert UnitAnnotation(7, 2, quality="excellent").is_good()
+        assert not UnitAnnotation(7, 2, quality="mua").is_good()
+        assert not UnitAnnotation(7, 2, quality=None).is_good()
+
+    def test_is_good_custom_tags(self):
+        from neurobox.io import UnitAnnotation
+        # "accepted" is in the default set; test with a non-standard tag
+        u = UnitAnnotation(7, 2, quality="reviewed")
+        assert not u.is_good()                          # not in default set
+        assert u.is_good(tags=frozenset({"reviewed"}))  # explicit custom set
+
+    def test_is_mua(self):
+        from neurobox.io import UnitAnnotation
+        assert UnitAnnotation(7, 2, quality="mua").is_mua()
+        assert UnitAnnotation(7, 2, quality="MUA").is_mua()
+        assert not UnitAnnotation(7, 2, quality="good").is_mua()
+
+    def test_map_to_global_ids(self):
+        import numpy as np
+        from neurobox.io import load_units, map_annotations_to_global_ids
+        par = self._make_par([
+            {"group": 1, "cluster": 2, "quality": "good"},
+            {"group": 1, "cluster": 3, "quality": "mua"},
+        ])
+        units = load_units(par)
+        # spk.map: [global_id, shank, local_cluster]
+        spk_map = np.array([[10, 1, 2], [11, 1, 3]], dtype=np.int64)
+        map_annotations_to_global_ids(units, spk_map)
+        assert units[0].global_id == 10
+        assert units[1].global_id == 11
+
+    def test_map_unmatched_leaves_none(self):
+        import numpy as np
+        from neurobox.io import load_units, map_annotations_to_global_ids
+        par = self._make_par([
+            {"group": 5, "cluster": 99, "quality": "good"},
+        ])
+        units = load_units(par)
+        spk_map = np.array([[10, 1, 2]], dtype=np.int64)
+        map_annotations_to_global_ids(units, spk_map)
+        assert units[0].global_id is None
+
+
+class TestNBSpkAnnotations:
+    """Tests for NBSpk.annotation_for and annotated_unit_ids."""
+
+    def _make_spk_with_annotations(self):
+        """Return an NBSpk with two units and annotations pre-loaded."""
+        import numpy as np
+        from neurobox.dtype.spikes import NBSpk
+        from neurobox.io import UnitAnnotation
+
+        res  = np.array([0.1, 0.2, 0.3, 0.4, 0.5], dtype=np.float64)
+        clu  = np.array([10, 10, 11, 11, 11], dtype=np.int32)
+        map_ = np.array([[10, 1, 2], [11, 1, 3]], dtype=np.int64)
+
+        spk = NBSpk(res, clu, map_, samplerate=20000.)
+        spk.annotations = [
+            UnitAnnotation(1, 2, global_id=10, quality="good",
+                           cell_type="pyr", structure="CA1",
+                           isolation_distance=25.1),
+            UnitAnnotation(1, 3, global_id=11, quality="mua",
+                           cell_type="int", structure="CA1"),
+        ]
+        return spk
+
+    def test_annotation_for_by_global_id(self):
+        spk = self._make_spk_with_annotations()
+        ann = spk.annotation_for(10)
+        assert ann is not None
+        assert ann.quality == "good"
+        assert ann.cell_type == "pyr"
+
+    def test_annotation_for_missing_returns_none(self):
+        spk = self._make_spk_with_annotations()
+        assert spk.annotation_for(99) is None
+
+    def test_annotation_for_fallback_to_map(self):
+        """annotation_for works even if global_id was not set."""
+        import numpy as np
+        from neurobox.dtype.spikes import NBSpk
+        from neurobox.io import UnitAnnotation
+
+        spk = NBSpk(
+            np.array([0.1], dtype=np.float64),
+            np.array([10], dtype=np.int32),
+            np.array([[10, 1, 2]], dtype=np.int64),
+        )
+        # global_id left as None
+        spk.annotations = [UnitAnnotation(1, 2, quality="good")]
+        ann = spk.annotation_for(10)
+        assert ann is not None
+        assert ann.quality == "good"
+
+    def test_annotated_unit_ids_by_quality(self):
+        spk = self._make_spk_with_annotations()
+        good = spk.annotated_unit_ids(quality="good")
+        assert list(good) == [10]
+
+    def test_annotated_unit_ids_mua(self):
+        spk = self._make_spk_with_annotations()
+        mua = spk.annotated_unit_ids(quality="mua")
+        assert list(mua) == [11]
+
+    def test_annotated_unit_ids_no_filter(self):
+        spk = self._make_spk_with_annotations()
+        # None quality filter → all annotated units with global_id
+        all_ids = spk.annotated_unit_ids(quality=None)
+        assert set(all_ids) == {10, 11}
+
+    def test_annotated_unit_ids_by_cell_type(self):
+        spk = self._make_spk_with_annotations()
+        pyr = spk.annotated_unit_ids(cell_type="pyr")
+        assert list(pyr) == [10]
+
+    def test_annotated_unit_ids_by_structure(self):
+        spk = self._make_spk_with_annotations()
+        ca1 = spk.annotated_unit_ids(structure="CA1")
+        assert set(ca1) == {10, 11}
+
+    def test_annotated_unit_ids_combined_filters(self):
+        spk = self._make_spk_with_annotations()
+        result = spk.annotated_unit_ids(quality="good", cell_type="pyr",
+                                         structure="CA1")
+        assert list(result) == [10]
+
+    def test_annotated_unit_ids_empty_when_no_annotations(self):
+        import numpy as np
+        from neurobox.dtype.spikes import NBSpk
+        spk = NBSpk(np.array([0.1]), np.array([2]))
+        result = spk.annotated_unit_ids(quality="good")
+        assert len(result) == 0
+
+
+class TestNeuronQualityWithAnnotations:
+    """NeuronQualityResult yaml_* fields and integration."""
+
+    def test_yaml_fields_in_result(self):
+        from neurobox.analysis import NeuronQualityResult
+        r = NeuronQualityResult(
+            unit_id=5, n_spikes=200, isi_contamination=0.01,
+            snr=4.0, yaml_quality="good", yaml_cell_type="pyr",
+            yaml_structure="CA1", yaml_isolation_distance=22.5,
+        )
+        assert r.yaml_quality == "good"
+        assert r.yaml_cell_type == "pyr"
+        assert r.yaml_structure == "CA1"
+        assert abs(r.yaml_isolation_distance - 22.5) < 1e-9
+
+    def test_is_single_unit_with_good_yaml(self):
+        from neurobox.analysis import NeuronQualityResult
+        r = NeuronQualityResult(
+            unit_id=5, n_spikes=200, isi_contamination=0.01,
+            snr=4.0, yaml_quality="good",
+        )
+        assert r.is_single_unit()
+
+    def test_is_single_unit_blocked_by_bad_yaml(self):
+        from neurobox.analysis import NeuronQualityResult
+        # Good metrics, but YAML says MUA
+        r = NeuronQualityResult(
+            unit_id=5, n_spikes=200, isi_contamination=0.005,
+            snr=5.0, yaml_quality="mua",
+        )
+        assert not r.is_single_unit()
+
+    def test_is_single_unit_no_yaml_uses_metrics_only(self):
+        from neurobox.analysis import NeuronQualityResult
+        # No YAML annotation → metric-only judgement
+        r = NeuronQualityResult(
+            unit_id=5, n_spikes=200, isi_contamination=0.005, snr=5.0,
+        )
+        assert r.is_single_unit()
+
+    def test_repr_shows_quality_when_present(self):
+        from neurobox.analysis import NeuronQualityResult
+        r = NeuronQualityResult(unit_id=5, n_spikes=100,
+                                isi_contamination=0.01, yaml_quality="good")
+        assert "q='good'" in repr(r)
+
+    def test_neuron_quality_merges_annotation(self):
+        """neuron_quality() picks up yaml_quality from spk.annotations."""
+        import numpy as np
+        from neurobox.analysis import neuron_quality
+        from neurobox.dtype.spikes import NBSpk
+        from neurobox.io import UnitAnnotation
+
+        rng = np.random.default_rng(42)
+        t2  = np.sort(rng.uniform(0, 60, 300))
+        spk = NBSpk(t2, np.full(300, 2, dtype=np.int32),
+                    np.array([[2, 1, 2]], dtype=np.int64), samplerate=20000.)
+        spk.annotations = [
+            UnitAnnotation(1, 2, global_id=2, quality="great",
+                           cell_type="pyr", structure="DG"),
+        ]
+        nq = neuron_quality(spk, duration_sec=60., save=False)
+        assert nq[2].yaml_quality  == "great"
+        assert nq[2].yaml_cell_type == "pyr"
+        assert nq[2].yaml_structure == "DG"

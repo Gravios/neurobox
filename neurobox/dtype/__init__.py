@@ -11,6 +11,8 @@ from .model           import NBModel
 from .spikes          import NBSpk
 from .xyz             import NBDxyz
 from .lfp             import NBDlfp
+from .ang             import NBDang
+from .ufr             import NBDufr
 from .stc             import NBStateCollection
 from .paths           import NBSessionPaths, parse_session_name, build_session_name
 from .session         import NBSession, NBTrial
@@ -25,6 +27,8 @@ __all__ = [
     "NBSpk",
     "NBDxyz",
     "NBDlfp",
+    "NBDang",
+    "NBDufr",
     "NBStateCollection",
     "NBSessionPaths",
     "parse_session_name",

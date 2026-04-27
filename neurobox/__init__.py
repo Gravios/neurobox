@@ -18,7 +18,7 @@ from importlib.metadata import version, PackageNotFoundError
 try:
     __version__ = version("neurobox")
 except PackageNotFoundError:
-    __version__ = "0.1.0-dev"
+    __version__ = "0.1.2"
 
 # Public re-exports — keep this list explicit so `from neurobox import *`
 # gives a clean, predictable namespace.
@@ -32,6 +32,8 @@ from neurobox.dtype import (
     NBSpk,
     NBDxyz,
     NBDlfp,
+    NBDang,
+    NBDufr,
     NBStateCollection,
     NBSessionPaths,
     parse_session_name,
@@ -76,7 +78,14 @@ from neurobox.pipelines import (
     quick_trial_setup,
     batch_trial_setup,
 )
-from neurobox.analysis import neuron_quality, NeuronQualityResult
+from neurobox.analysis import (
+    neuron_quality, NeuronQualityResult,
+    transform_origin, TransformResult,
+    SpectralParams, SpectrumResult,
+    multitaper_spectrogram, multitaper_coherogram,
+    multitaper_cross_spectrogram, multitaper_psd,
+    whiten_ar, fet_spec,
+)
 from neurobox.io import load_units, UnitAnnotation, map_annotations_to_global_ids
 
 __all__ = [
@@ -90,6 +99,8 @@ __all__ = [
     "NBSpk",
     "NBDxyz",
     "NBDlfp",
+    "NBDang",
+    "NBDufr",
     "NBStateCollection",
     "NBSessionPaths",
     "parse_session_name",
@@ -131,6 +142,16 @@ __all__ = [
     # analysis
     "neuron_quality",
     "NeuronQualityResult",
+    "transform_origin",
+    "TransformResult",
+    "SpectralParams",
+    "SpectrumResult",
+    "multitaper_spectrogram",
+    "multitaper_coherogram",
+    "multitaper_cross_spectrogram",
+    "multitaper_psd",
+    "whiten_ar",
+    "fet_spec",
     # unit annotations
     "load_units",
     "UnitAnnotation",

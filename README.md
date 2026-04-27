@@ -6,11 +6,14 @@ Analysis toolbox for silicon-probe electrophysiology, integrated with
 ## Features
 
 - Load neurosuite-3 binary spike/LFP/waveform data (`.res`, `.clu`, `.spk`, `.lfp`, `.dat`)
-- Parse YAML session parameter files
+- Parse YAML and XML session parameter files; par auto-loaded on every session open
 - Synchronise ephys with motion-capture (Vicon, Optitrack) and 2-D tracking
-- NBSession / NBTrial session containers with lazy data loading
-- NBStateCollection behavioural state management with set-algebra query language
-- Structured project / data directory management
+- `NBSession` / `NBTrial` containers with lazy, sync-aware data loading
+- `NBStateCollection` behavioural state management with set-algebra DSL (`stc["walk&theta"]`)
+- `NBDang` — pairwise inter-marker spherical coordinates (head direction, pitch, distance)
+- `NBDufr` — unit firing-rate time-series (Gaussian/boxcar smoothing, spikes/s)
+- `neuron_quality` — ISI contamination, SNR, spike width metrics with YAML curation merge
+- Structured project / data directory management with CLI entry points
 
 ## Installation
 
@@ -79,17 +82,23 @@ stc = session.load("stc")     # state collection → NBStateCollection
 ### Spike analysis
 
 ```python
-spk = session.load("spk")
+spk = session.load("spk")              # full recording
+spk = trial.load("spk")               # auto-restricted to trial.sync
+spk = trial.load("spk", restrict=False)        # override — full recording
+spk = trial.load("spk", periods=stc["walk"])   # explicit epoch override
 
 # Spike times in seconds for unit 5
 times = spk[5]
 
 # Restrict to a behavioural state
-walk_epoch = stc["walk"]
-times_walk = spk[5, walk_epoch]
+times_walk = spk[5, stc["walk"]]
 
 # Per-unit dict (compatible with neural_scattering)
 spikes_dict = spk.by_unit  # property: dict[unit_id → spike_times_sec]
+
+# YAML-curated unit filtering (requires klusters/phy quality tags in par YAML)
+good_ids = spk.annotated_unit_ids(quality="good")
+pyr_ids  = spk.annotated_unit_ids(quality="good", cell_type="pyr", structure="CA1")
 ```
 
 ### Unit annotations
@@ -134,6 +143,37 @@ csd = lfp.csd(channel_pitch_um=50)
 
 # Index by epoch periods
 theta_lfp = lfp[stc["theta"].data]
+```
+
+### Angular kinematics (NBDang)
+
+```python
+ang = session.load("ang")        # computes from session.xyz
+ang = NBDang.from_xyz(xyz)       # or from a loaded NBDxyz directly
+
+# Head direction (azimuth, radians) — head_back → head_front vector
+hd = ang.head_direction("head_back", "head_front")
+
+# Any named pair and component
+theta = ang.between("spine_lower", "head_back", "theta")  # yaw
+phi   = ang.between("spine_lower", "head_back", "phi")    # pitch
+r     = ang.between("spine_lower", "head_back", "r")      # distance mm
+
+# Full (T, N, N, 3) array — [theta, phi, r] per pair
+ang.data   # shape (T, n_markers, n_markers, 3)
+```
+
+### Unit firing rates (NBDufr)
+
+```python
+ufr = session.load("ufr")                              # all units, 50 ms Gaussian, 1250 Hz
+ufr = trial.load("ufr", units=good_ids, window=0.05)  # curated units, trial-restricted
+
+# Firing-rate trace for one unit (spikes/s)
+rate = ufr.rates_for(unit_id)
+
+# Epoch selection via inherited NBData.__getitem__
+walk_rates = ufr[stc["walk"]]   # (T_walk, N_units)
 ```
 
 ### State collection

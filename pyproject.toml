@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neurobox"
-version = "0.1.0"
+version = "0.1.2"
 description = "Analysis toolbox for silicon-probe electrophysiology, integrated with neurosuite-3"
 readme = "README.md"
 license = { text = "MIT" }

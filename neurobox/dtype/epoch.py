@@ -429,6 +429,74 @@ class NBEpoch:
                        label=label, key=key, mode="mask").to_periods()
 
 
+    # ------------------------------------------------------------------ #
+    # Persistence (load / save)                                           #
+    # ------------------------------------------------------------------ #
+
+    def save(self, path: "Path | str", overwrite: bool = False) -> None:
+        """Save this epoch to a .pkl file.
+
+        Mirrors MTADepoch.save / MTAData.save.
+        """
+        import pickle
+        from pathlib import Path
+        path = Path(path)
+        if path.exists() and not overwrite:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load_file(cls, path: "Path | str") -> "NBEpoch":
+        """Load an epoch previously saved with :meth:`save`.
+
+        Mirrors MTADepoch.load.
+        """
+        import pickle
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    # ------------------------------------------------------------------ #
+    # cast  (convert between mask and period representations)             #
+    # ------------------------------------------------------------------ #
+
+    def cast(self, target_mode: str, samplerate: float | None = None) -> "NBEpoch":
+        """Convert between 'mask' (logical) and 'periods' representations.
+
+        Mirrors MTADepoch.cast.
+
+        Parameters
+        ----------
+        target_mode:
+            'periods' -- convert a mask to (N, 2) period array.
+            'mask'    -- convert periods to boolean mask.
+        samplerate:
+            Target sample rate.  Required when converting to 'mask'
+            if self.samplerate is not set.
+        """
+        sr = samplerate or self.samplerate
+        if target_mode == "periods":
+            if self.mode == "periods":
+                return self.copy()
+            return self.to_periods()
+        elif target_mode == "mask":
+            if self.mode == "mask":
+                return self.copy()
+            if sr is None or sr <= 0:
+                raise ValueError("samplerate is required when casting to mask.")
+            if self.isempty():
+                n = 0
+            else:
+                n = int(np.ceil(self.data[:, 1].max() * sr))
+            mask = self.to_mask(n)
+            return NBEpoch(mask, samplerate=sr, label=self.label, mode="mask")
+        else:
+            raise ValueError(
+                f"Unknown target_mode {target_mode!r}. Use 'periods' or 'mask'."
+            )
+
+
 # ---------------------------------------------------------------------------
 # Convenience function
 # ---------------------------------------------------------------------------

@@ -1,3 +1,58 @@
+## [0.1.2] — 2026-04-24
+
+### Added
+
+**`neurobox.dtype.NBDang`** (new class)
+- Port of `MTADang` / `MTADang.create`.
+- Computes pairwise inter-marker spherical coordinates ``(T, N, N, 3)``
+  using vectorised numpy broadcasting (azimuth θ, elevation φ, distance r).
+- `from_xyz(xyz)` classmethod, `between(i, j, component)` named-pair access,
+  `head_direction(from, to)` shorthand.
+- `session.load("ang")` auto-loads xyz if needed.
+
+**`neurobox.dtype.NBDufr`** (new class)
+- Port of `MTADufr` / `MTADufr.create`.
+- Unit firing-rate time-series at any reference sample rate (default 1250 Hz).
+- Three modes: `'gauss'` (Gaussian, default 50 ms σ), `'boxcar'`,
+  `'count'` (raw bin counts).
+- Returns spikes/s; inherits `NBData.__getitem__` for epoch selection
+  (`ufr[stc["walk"]]`).
+- `session.load("ufr", samplerate, units, window, mode)` session loader.
+
+**`NBSession.load("ang")` / `load("ufr")`**
+- New field branches alongside the existing `spk`, `lfp`, `xyz`, `stc`.
+
+**`NBSession.load("spk", restrict, periods)` — two new keyword arguments**
+- `restrict=True` (default): automatically restrict spikes to `self.sync`
+  when called on an `NBTrial`.  `restrict=False` returns the full recording.
+- `periods`: explicit `NBEpoch` or `(N, 2)` float64 array override.
+
+**MTA method parity** — new methods on existing types
+- `NBData`: `copy()`, `clear()`, `update_path()`, `update_filename()`,
+  `phase(freq_range)` — band-pass + Hilbert analytic phase.
+- `NBEpoch`: `cast(target_mode)`, `save(path)`, `load_file(path)`.
+- `NBSpk`: `clear()`, `copy()`, `save_unit_set()`, `load_unit_set()`.
+- `NBDxyz`: `subset(marker_names)`, `get_pose_index(marker, threshold)`.
+- `NBSession`: `update_paths()`, `list_trial_names()`.
+
+### Fixed
+
+- **`NBSession` — par auto-loaded on every open** (`_load_ses_file` now calls
+  `_init_par()` when par is None after restoring from `.ses.pkl`).
+- **`NBSession.save()` excludes par** — par is always re-read from the YAML
+  so edits to the `units:` block are picked up without re-running create.
+- **`session.load("lfp")` and `load("xyz")` now respect `trial.sync`** —
+  LFP reads only the trial sample range from disk; xyz is masked to trial
+  frames.  Equivalent to `MTAData.resync` but implemented with three lines
+  using `NBEpoch.to_mask` / `load_binary(periods=...)`.
+- **`get_lfp_samplerate` — added legacy XML fallback** — checks
+  `par.lfpSampleRate` (old ndManager XML / old YAML) when
+  `par.fieldPotentials.lfpSamplingRate` is absent.
+- **`autolabel` `fillgaps` wrong kwarg** — `min_gap_sec=` → `gap_sec=`;
+  added 0.5 s minimum-duration filter to drop artefact bursts.
+- **LFP sync sample-rate conversion robustness** — explicit `int64` dtype;
+  safe fallback chain `self.par → load_par(disk) → sr_default`.
+
 ## [0.1.1] — 2026-04-22
 
 ### Added
