@@ -366,6 +366,38 @@ class NBSpk:
 
         return obj
 
+    def clear(self) -> "NBSpk":
+        """Free the in-memory spike arrays. Mirrors MTASpk.clear."""
+        self.res = np.array([], dtype=np.float64)
+        self.clu = np.array([], dtype=np.int32)
+        self.fet = None
+        self.spk = None
+        return self
+
+    def copy(self) -> "NBSpk":
+        """Return a deep copy. Mirrors MTASpk.copy."""
+        import copy as _copy
+        return _copy.deepcopy(self)
+
+    def save_unit_set(self, session, name: str, unit_ids) -> None:
+        """Save named unit subset to disk. Mirrors MTASpk.set_unit_set.
+
+        Saves <spath>/<filebase>.unit_set.<name>.npy.
+        """
+        out = session.spath / f"{session.filebase}.unit_set.{name}.npy"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        np.save(str(out), np.asarray(unit_ids, dtype=np.int32))
+
+    def load_unit_set(self, session, name: str) -> "np.ndarray":
+        """Load a named unit set. Mirrors MTASpk.get_unit_set."""
+        src = session.spath / f"{session.filebase}.unit_set.{name}.npy"
+        if not src.exists():
+            raise FileNotFoundError(
+                f"Unit set {name!r} not found at {src}. "
+                "Create it with spk.save_unit_set(session, name, ids)."
+            )
+        return np.load(str(src))
+
     def create(self, *args, **kwargs) -> "NBSpk":
         """Alias for load()."""
         return NBSpk.load(*args, **kwargs)

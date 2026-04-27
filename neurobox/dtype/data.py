@@ -465,3 +465,84 @@ class NBData(ABC):
     def __le__(self, other):
         d = self._data
         return d <= (other._data if isinstance(other, NBData) else other)
+
+
+    # ------------------------------------------------------------------ #
+    # copy / clear / update paths                                         #
+    # ------------------------------------------------------------------ #
+
+    def copy(self) -> "NBData":
+        """Return a deep copy of this data object."""
+        import copy as _copy
+        return _copy.deepcopy(self)
+
+    def clear(self) -> "NBData":
+        """Free the in-memory data array (keeps metadata intact).
+
+        Mirrors ``MTAData.clear``.  Useful after saving to disk to
+        reclaim RAM while retaining path/samplerate/sync metadata so
+        the object can be re-loaded later.
+        """
+        self._data = None
+        return self
+
+    def update_path(self, path) -> "NBData":
+        """Update the source file directory path.
+
+        Mirrors ``MTAData.updatePath``.
+        """
+        self.path = Path(path) if path is not None else None
+        return self
+
+    def update_filename(self, filename: str) -> "NBData":
+        """Update the source filename (base name, no directory).
+
+        Mirrors ``MTAData.updateFilename``.
+        """
+        self.filename = filename
+        return self
+
+    # ------------------------------------------------------------------ #
+    # phase  (Hilbert analytic phase of a band-passed signal)             #
+    # ------------------------------------------------------------------ #
+
+    def phase(self, freq_range=(6.0, 12.0), order: int = 3) -> "NBData":
+        """Compute the instantaneous analytic phase via band-pass + Hilbert.
+
+        Mirrors ``MTAData.phase`` (default theta band 6–12 Hz).
+
+        Parameters
+        ----------
+        freq_range:
+            ``(low_hz, high_hz)`` band-pass frequencies.
+        order:
+            Butterworth filter order (default 3).
+
+        Returns
+        -------
+        NBData subclass of the same type whose data contains the
+        unwrapped analytic phase in radians.
+        """
+        import copy as _copy
+        from scipy.signal import sosfiltfilt, butter, hilbert
+
+        if self._data is None:
+            raise RuntimeError("Data not loaded.")
+
+        # Band-pass filter
+        nyq  = self.samplerate / 2.0
+        lo   = float(freq_range[0]) / nyq
+        hi   = float(freq_range[1]) / nyq
+        sos  = butter(order, [lo, hi], btype="band", output="sos")
+
+        data = self._data.astype(np.float64)
+        # Apply along time axis (axis 0)
+        filtered = sosfiltfilt(sos, data, axis=0)
+
+        # Hilbert phase
+        analytic = hilbert(filtered, axis=0)
+        phs      = np.angle(analytic)
+
+        out = _copy.deepcopy(self)
+        out._data = phs.astype(np.float32)
+        return out

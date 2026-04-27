@@ -122,6 +122,8 @@ class NBSession:
         self.lfp:        NBDlfp  | None           = None
         self.spk:        NBSpk   | None           = None
         self.stc:        NBStateCollection | None = None
+        self.ang:        "NBDang | None"          = None
+        self.ufr:        "NBDufr | None"          = None
         self.nq:         dict                     = {}
         self.meta:       dict                     = {}
 
@@ -277,6 +279,21 @@ class NBSession:
             ``'par'``, ``'spk'``, ``'lfp'``, ``'dat'``, ``'xyz'``,
             ``'stc'``, ``'nq'``.  If *None*, load the session ``.ses.pkl``.
 
+        Keyword arguments for ``'spk'``
+        --------------------------------
+        restrict : bool, default True
+            When True (default), spikes are restricted to ``self.sync``
+            if ``self.sync`` is set on the session.  This is the expected
+            behaviour for ``NBTrial`` objects, where ``self.sync`` holds
+            the trial's analysis window.  Pass ``restrict=False`` to
+            load the full recording regardless of the session sync.
+        periods : NBEpoch | np.ndarray | None, default None
+            Explicit period mask to apply after loading, expressed in
+            seconds as an ``(N, 2)`` float64 array or an :class:`NBEpoch`.
+            Overrides the automatic ``self.sync`` restriction when
+            ``restrict=True``.  Useful for one-off queries without
+            creating a full ``NBTrial``.
+
         Returns
         -------
         The loaded data object (or *self* when *field* is None).
@@ -290,6 +307,10 @@ class NBSession:
             return self.par
 
         elif field == "spk":
+            # Pop spk-specific kwargs before forwarding the rest to NBSpk.load
+            restrict = kwargs.pop("restrict", True)
+            periods  = kwargs.pop("periods",  None)
+
             # Prefer the symlinked spath, fall back to processed_ephys
             for base in (self.spath / self.name,
                          self.paths.processed_ephys / self.name):
@@ -300,13 +321,38 @@ class NBSession:
                         **kwargs,
                     )
                     self.spk = spk
-                    return spk
+                    break
                 except FileNotFoundError:
                     continue
-            raise FileNotFoundError(
-                f"No .res/.clu files found for {self.name!r} "
-                f"in {self.spath} or {self.paths.processed_ephys}"
-            )
+            else:
+                raise FileNotFoundError(
+                    f"No .res/.clu files found for {self.name!r} "
+                    f"in {self.spath} or {self.paths.processed_ephys}"
+                )
+
+            # ── Period restriction ────────────────────────────────────── #
+            # Resolve the epoch to restrict to:
+            #   1. Explicit `periods` kwarg takes precedence.
+            #   2. self.sync (set on NBTrial by quick_trial_setup) is used
+            #      when restrict=True and no explicit periods are given.
+            #   3. Neither → no restriction; full recording returned.
+            epoch = None
+            if periods is not None:
+                if isinstance(periods, NBEpoch):
+                    epoch = periods
+                else:
+                    epoch = NBEpoch(
+                        np.asarray(periods, dtype=np.float64),
+                        samplerate = 1.0,
+                        mode       = "periods",
+                    )
+            elif restrict and self.sync is not None:
+                epoch = self.sync
+
+            if epoch is not None and not epoch.isempty():
+                self.spk = self.spk.restrict(epoch)
+
+            return self.spk
 
         elif field in ("lfp", "dat"):
             ext = field   # 'lfp' or 'dat'
@@ -314,16 +360,44 @@ class NBSession:
             if not lfp_path.exists():
                 lfp_path = self.paths.processed_ephys / f"{self.name}.{ext}"
             channels = kwargs.get("channels", None)
+            sr_default = 1250.0 if ext == "lfp" else (self.samplerate or 20000.0)
             lfp = NBDlfp(
                 path       = lfp_path.parent,
                 filename   = lfp_path.name,
-                samplerate = (1250.0 if ext == "lfp"
-                              else (self.samplerate or 20000.0)),
+                samplerate = sr_default,
                 name       = self.name,
                 ext        = ext,
             )
+            # Convert self.sync to sample-index periods for the binary reader.
+            # When self.sync is set (e.g. on an NBTrial), only the trial window
+            # is read from disk, reducing memory by the trial/session ratio.
+            lfp_periods = None
+            if self.sync is not None:
+                # Resolve sample rate for converting sync seconds → sample indices.
+                # self.sync stores seconds (samplerate=1.0); multiply by lfp_sr
+                # to get the integer sample-index intervals load_binary expects.
+                if ext == "lfp":
+                    if self.par is not None:
+                        from neurobox.io.load_yaml import get_lfp_samplerate
+                        _sync_sr = get_lfp_samplerate(self.par, default=sr_default)
+                    else:
+                        try:
+                            from neurobox.io import load_par as _lp
+                            from neurobox.io.load_yaml import get_lfp_samplerate
+                            _sync_sr = get_lfp_samplerate(
+                                _lp(str(lfp_path.with_suffix(""))),
+                                default=sr_default,
+                            )
+                        except Exception:
+                            _sync_sr = sr_default
+                else:  # "dat"
+                    _sync_sr = float(self.samplerate or sr_default)
+                lfp_periods = np.round(
+                    self.sync._as_periods() * _sync_sr
+                ).astype(np.int64)
             lfp.load(str(lfp_path.with_suffix("")),
-                     channels=channels, par=self.par)
+                     channels=channels, par=self.par,
+                     periods=lfp_periods)
             self.lfp = lfp
             return lfp
 
@@ -333,6 +407,12 @@ class NBSession:
                 xyz = NBDxyz(path=self.spath,
                              filename=pos_file.name)
                 xyz.load(pos_file)
+                # When self.sync is set (e.g. NBTrial), restrict the loaded
+                # array to the trial window.  This mirrors MTAData.resync for
+                # xyz: select only frames inside the sync periods.
+                if self.sync is not None and xyz._data is not None:
+                    mask = self.sync.to_mask(xyz.n_samples)
+                    xyz._data = xyz._data[mask]
                 self.xyz = xyz
                 return xyz
             raise FileNotFoundError(
@@ -354,6 +434,35 @@ class NBSession:
                 )
             return self.stc
 
+        elif field == "ang":
+            from neurobox.dtype.ang import NBDang
+            if self.xyz is None:
+                self.load("xyz")
+            ang = NBDang()
+            ang.create(self.xyz)
+            self.ang = ang
+            return ang
+
+        elif field == "ufr":
+            from neurobox.dtype.ufr import NBDufr
+            if self.spk is None:
+                self.load("spk")
+            _sr   = float(kwargs.get("samplerate", 1250.0))
+            _dur  = kwargs.get("duration_sec", None)
+            if _dur is None and self.sync is not None:
+                _dur = float(self.sync._as_periods()[-1, -1])
+            ufr = NBDufr.compute(
+                self.spk,
+                samplerate   = _sr,
+                duration_sec = _dur,
+                units        = kwargs.get("units", None),
+                window       = float(kwargs.get("window", 0.05)),
+                mode         = kwargs.get("mode", "gauss"),
+                sync         = self.sync,
+            )
+            self.ufr = ufr
+            return ufr
+
         elif field == "nq":
             nq_file = self.spath / f"{self.name}.NeuronQuality.npy"
             if nq_file.exists():
@@ -362,7 +471,7 @@ class NBSession:
 
         raise ValueError(
             f"Unknown field {field!r}.  "
-            "Choose from: par, spk, lfp, dat, xyz, stc, nq."
+            "Choose from: par, spk, lfp, dat, xyz, stc, nq, ang, ufr."
         )
 
     # ------------------------------------------------------------------ #
@@ -370,12 +479,50 @@ class NBSession:
     # ------------------------------------------------------------------ #
 
     def save(self) -> None:
-        """Persist the session skeleton to ``<spath>/<filebase>.ses.pkl``."""
+        """Persist the session skeleton to ``<spath>/<filebase>.ses.pkl``.
+
+        ``par`` is deliberately excluded: it is always re-read from the
+        YAML on load so it stays current after re-sorting and manual
+        curation edits to the ``units:`` block.
+        """
         self.spath.mkdir(parents=True, exist_ok=True)
+        _SKIP = frozenset({"par"})
         state = {k: v for k, v in self.__dict__.items()
-                 if not k.startswith("_")}
+                 if not k.startswith("_") and k not in _SKIP}
         with open(self.paths.ses_file, "wb") as f:
             pickle.dump(state, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def update_paths(
+        self,
+        data_root: "Path | str | None" = None,
+        project_id: "str | None" = None,
+    ) -> "NBSession":
+        """Rebuild path attributes. Mirrors MTASession.updatePaths."""
+        conf = self._resolve_config(
+            data_root  = str(data_root) if data_root else None,
+            project_id = project_id if project_id else None,
+        )
+        self.paths = NBSessionPaths(
+            session_name = self.name,
+            data_root    = conf["data_root"],
+            project_id   = conf["project_id"],
+            maze         = self.maze or "cof",
+        )
+        self.spath = self.paths.spath
+        for attr in ("xyz", "lfp", "stc", "spk"):
+            obj = getattr(self, attr, None)
+            if obj is not None and hasattr(obj, "update_path"):
+                obj.update_path(self.spath)
+        return self
+
+    def list_trial_names(self) -> list:
+        """Return trial names saved in spath. Mirrors MTASession.list_trial_names."""
+        names = []
+        for p in sorted(self.spath.glob(f"{self.name}.*.*.trl.pkl")):
+            parts = p.stem.split(".")
+            if len(parts) >= 3:
+                names.append(parts[2])
+        return names
 
     def _load_ses_file(self, path: Path) -> None:
         if not path.exists():
@@ -383,6 +530,11 @@ class NBSession:
         with open(path, "rb") as f:
             state = pickle.load(f)
         self.__dict__.update(state)
+        # par is never serialised into the .ses.pkl (it is always
+        # re-read from the YAML so it stays current after re-sorting).
+        # Load it now if it was not restored from the pickle.
+        if self.par is None:
+            self._init_par()
 
     # ------------------------------------------------------------------ #
     # Convenience                                                         #

@@ -361,6 +361,28 @@ class NBDxyz(NBData):
     # Repr                                                                 #
     # ------------------------------------------------------------------ #
 
+    def subset(self, marker_names: list) -> "NBDxyz":
+        """Return new NBDxyz with only the named markers. Mirrors MTADxyz.subset."""
+        import copy as _copy
+        if self._data is None:
+            raise RuntimeError("XYZ data not loaded.")
+        idx = self.model.resolve(marker_names)
+        new = _copy.copy(self)
+        new._data = self._data[:, idx, :]
+        new.model = self.model.subset([self.model.markers[i] for i in idx])
+        return new
+
+    def get_pose_index(
+        self,
+        marker_name: str,
+        threshold: float = 0.0,
+    ) -> "np.ndarray":
+        """Frame indices where marker z > threshold. Mirrors MTADxyz.get_pose_index."""
+        if self._data is None:
+            raise RuntimeError("XYZ data not loaded.")
+        idx = self.model.resolve([marker_name])[0]
+        return np.where(self._data[:, idx, 2] > threshold)[0]
+
     def __repr__(self) -> str:
         shape = self.shape if self._data is not None else "not loaded"
         return (f"NBDxyz(shape={shape}, "
