@@ -45,6 +45,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+gui = [
+    "PySide6>=6.8",
+]
+
 dev = [
     "pytest>=8",
     "pytest-cov",
