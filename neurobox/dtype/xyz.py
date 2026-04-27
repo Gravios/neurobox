@@ -280,7 +280,6 @@ class NBDxyz(NBData):
         col_types   = lines[2].rstrip("\n").split(",")  # Frame/Time/Bone/…
         model_names = lines[3].rstrip("\n").split(",")  # per-column object names
         data_types  = lines[5].rstrip("\n").split(",")  # Position/Rotation/…
-        dim_labels  = lines[6].rstrip("\n").split(",")  # X/Y/Z/W
 
         # ── Identify Position columns for selected subject ──────────────── #
         position_cols: list[int] = []   # column indices (0-based)

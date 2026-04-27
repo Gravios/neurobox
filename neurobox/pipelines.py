@@ -548,9 +548,8 @@ def _label_basic_states(trial: "NBTrial") -> None:
     walk_thr   = 3.0           # cm/s
     rear_thr   = 1.25 * median_z  # 125% of median head height
 
-    T     = xyz.n_samples
-    t_all = np.arange(T) / sr
-    sync  = trial.sync._as_periods() if trial.sync is not None else None
+    T    = xyz.n_samples
+    # trial.sync available for epoch-restricted labelling if needed
 
     def _make_epoch(mask: np.ndarray, label: str, key: str) -> NBEpoch:
         from neurobox.dtype.epoch import NBEpoch

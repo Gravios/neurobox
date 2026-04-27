@@ -131,7 +131,6 @@ def fill_gaps(
         return arr
 
     T, N_markers, N_dims = arr.shape
-    t_all = np.arange(T)
 
     for gap_start, gap_stop in gap_periods:
         gap_len = gap_stop - gap_start

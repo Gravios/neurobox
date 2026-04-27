@@ -15,7 +15,6 @@ def parse_nlx_events(filename, pattern):
 def mocap_events(filename, start, stop):
     events_start = parse_nlx_events(filename=filename, pattern=start)
     events_stop  = parse_nlx_events(filename=filename, pattern=stop)
-    events = events_start[:,np.newaxis]
     return (
         np.concatenate(
             (events_start[:,np.newaxis],

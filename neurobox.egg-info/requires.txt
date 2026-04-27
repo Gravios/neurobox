@@ -2,11 +2,11 @@ numpy>=1.26
 scipy>=1.12
 pyyaml>=6.0
 python-dotenv>=1.0
+pandas>=2.0
 
 [dev]
 pytest>=8
 pytest-cov
 
 [full]
-pandas>=2.0
 scikit-learn>=1.4

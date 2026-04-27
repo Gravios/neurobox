@@ -1,0 +1,272 @@
+From 262ed78f8ae66e8cc2ab896a7e00a37c344fcb82 Mon Sep 17 00:00:00 2001
+From: Gravios <justingraboski@gmail.com>
+Date: Mon, 27 Apr 2026 11:12:04 +0000
+Subject: [PATCH] cleanup: remove dead imports/vars, fix mutable default,
+ normalise CRLF, consolidate io imports, astype(np.int64)
+
+---
+ neurobox/__init__.py                  |  4 ++-
+ neurobox/analysis/lfp/spectral.py     |  6 ++--
+ neurobox/analysis/neuron_quality.py   |  1 -
+ neurobox/dtype/epoch.py               |  2 +-
+ neurobox/dtype/struct.py              |  7 ++--
+ neurobox/dtype/xyz.py                 |  1 -
+ neurobox/io/parse_events.py           | 47 +++++++++++++--------------
+ neurobox/io/xyz_fill_gaps.py          |  1 -
+ neurobox/pipelines.py                 |  5 ++-
+ neurobox/utils/__init__.py            |  2 +-
+ neurobox/utils/copytree.py            | 20 ++++++------
+ neurobox/utils/sync/__init__.py       |  2 +-
+ neurobox/utils/sync/sync_nlx_vicon.py |  8 ++---
+ 13 files changed, 51 insertions(+), 55 deletions(-)
+
+diff --git a/neurobox/__init__.py b/neurobox/__init__.py
+index 574e44f..3c7f491 100755
+--- a/neurobox/__init__.py
++++ b/neurobox/__init__.py
+@@ -62,6 +62,9 @@ from neurobox.io import (
+     fill_gaps,
+     fill_xyz_gaps,
+     detect_gaps,
++    load_units,
++    UnitAnnotation,
++    map_annotations_to_global_ids,
+ )
+ 
+ from neurobox.config.config import (
+@@ -86,7 +89,6 @@ from neurobox.analysis import (
+     multitaper_cross_spectrogram, multitaper_psd,
+     whiten_ar, fet_spec,
+ )
+-from neurobox.io import load_units, UnitAnnotation, map_annotations_to_global_ids
+ 
+ __all__ = [
+     "__version__",
+diff --git a/neurobox/analysis/lfp/spectral.py b/neurobox/analysis/lfp/spectral.py
+index bcff5a0..0dbd7d7 100644
+--- a/neurobox/analysis/lfp/spectral.py
++++ b/neurobox/analysis/lfp/spectral.py
+@@ -56,7 +56,7 @@ import numpy as np
+ 
+ # scipy.signal.windows.dpss is the correct path in scipy ≥ 1.1
+ from scipy.signal.windows import dpss as _dpss
+-from scipy.linalg import solve_triangular
++from scipy.linalg         import solve_toeplitz
+ 
+ 
+ # ─────────────────────────────────────────────────────────────────────────── #
+@@ -270,7 +270,6 @@ def _compute_periodogram(
+     K = n_tapers, C = n_channels.  Normalised as in ``mtchglong`` (sqrt(2)).
+     """
+     T, C = segment.shape
+-    K = tapers.shape[1]
+ 
+     if detrend == "linear":
+         segment = _detrend_linear(segment)
+@@ -638,7 +637,6 @@ def whiten_ar(
+         numerator; same as MATLAB ``arburg`` output).
+     """
+     from scipy.signal import lfilter
+-    from scipy.linalg import solve_toeplitz
+ 
+     if x.ndim == 1:
+         x = x[:, None]
+@@ -776,7 +774,7 @@ def fet_spec(
+ 
+     # 1. AR whitening
+     if whiten:
+-        data_w, ar_out = whiten_ar(
++        data_w, _ = whiten_ar(
+             data, ar_model=ar_model, samplerate=samplerate
+         )
+     else:
+diff --git a/neurobox/analysis/neuron_quality.py b/neurobox/analysis/neuron_quality.py
+index 3995f68..36f3f59 100644
+--- a/neurobox/analysis/neuron_quality.py
++++ b/neurobox/analysis/neuron_quality.py
+@@ -201,7 +201,6 @@ def _waveform_metrics(
+     best_ch    = int(amp_per_ch.argmax())
+     mwf        = mean_wf[:, best_ch]   # (n_samples,)
+ 
+-    n_samp     = len(mwf)
+     dt_ms      = 1000.0 / samplerate
+ 
+     # ── SNR ───────────────────────────────────────────────────────────── #
+diff --git a/neurobox/dtype/epoch.py b/neurobox/dtype/epoch.py
+index 203a240..4354a25 100644
+--- a/neurobox/dtype/epoch.py
++++ b/neurobox/dtype/epoch.py
+@@ -362,7 +362,7 @@ class NBEpoch:
+             new_n = int(round(old_n / self.samplerate * new_samplerate))
+             # Nearest-neighbour: map each output time to the closest input index
+             t_new = np.arange(new_n) / new_samplerate
+-            idx   = np.round(t_new * self.samplerate).astype(int).clip(0, old_n - 1)
++            idx   = np.round(t_new * self.samplerate).astype(np.int64).clip(0, old_n - 1)
+             result.data = self.data[idx]
+         result.samplerate = new_samplerate
+         return result
+diff --git a/neurobox/dtype/struct.py b/neurobox/dtype/struct.py
+index 8584293..3913d3a 100755
+--- a/neurobox/dtype/struct.py
++++ b/neurobox/dtype/struct.py
+@@ -1,9 +1,10 @@
+ 
+ class Struct:
+ 
+-    def __init__(self, dictionary={}):
+-        for name, value in dictionary.items():
+-            self.__setattr__( name, value)
++    def __init__(self, dictionary=None):
++        if dictionary is not None:
++            for name, value in dictionary.items():
++                self.__setattr__(name, value)
+         
+     def __setattr__(self, name, value):
+         self.__dict__[name] = value
+diff --git a/neurobox/dtype/xyz.py b/neurobox/dtype/xyz.py
+index b6ef999..9a719e4 100644
+--- a/neurobox/dtype/xyz.py
++++ b/neurobox/dtype/xyz.py
+@@ -280,7 +280,6 @@ class NBDxyz(NBData):
+         col_types   = lines[2].rstrip("\n").split(",")  # Frame/Time/Bone/…
+         model_names = lines[3].rstrip("\n").split(",")  # per-column object names
+         data_types  = lines[5].rstrip("\n").split(",")  # Position/Rotation/…
+-        dim_labels  = lines[6].rstrip("\n").split(",")  # X/Y/Z/W
+ 
+         # ── Identify Position columns for selected subject ──────────────── #
+         position_cols: list[int] = []   # column indices (0-based)
+diff --git a/neurobox/io/parse_events.py b/neurobox/io/parse_events.py
+index 4112871..7947271 100755
+--- a/neurobox/io/parse_events.py
++++ b/neurobox/io/parse_events.py
+@@ -1,24 +1,23 @@
+-import numpy as np
+-import re
+-
+-def parse_nlx_events(filename, pattern):
+-    timestamps = []
+-    with open(filename, 'r') as file:
+-        for line in file:
+-            if pattern in line:
+-                match = re.search(r'\d+(?:\.\d+)?(?:[eE][-+]?\d+)?', line)
+-                if match:
+-                    timestamps.append(np.float64(match.group()))
+-    return np.array(timestamps, dtype=np.float64)
+-
+-
+-def mocap_events(filename, start, stop):
+-    events_start = parse_nlx_events(filename=filename, pattern=start)
+-    events_stop  = parse_nlx_events(filename=filename, pattern=stop)
+-    events = events_start[:,np.newaxis]
+-    return (
+-        np.concatenate(
+-            (events_start[:,np.newaxis],
+-             events_stop[:,np.newaxis]),
+-            axis=1)
+-        )/1000
++import numpy as np
++import re
++
++def parse_nlx_events(filename, pattern):
++    timestamps = []
++    with open(filename, 'r') as file:
++        for line in file:
++            if pattern in line:
++                match = re.search(r'\d+(?:\.\d+)?(?:[eE][-+]?\d+)?', line)
++                if match:
++                    timestamps.append(np.float64(match.group()))
++    return np.array(timestamps, dtype=np.float64)
++
++
++def mocap_events(filename, start, stop):
++    events_start = parse_nlx_events(filename=filename, pattern=start)
++    events_stop  = parse_nlx_events(filename=filename, pattern=stop)
++    return (
++        np.concatenate(
++            (events_start[:,np.newaxis],
++             events_stop[:,np.newaxis]),
++            axis=1)
++        )/1000
+diff --git a/neurobox/io/xyz_fill_gaps.py b/neurobox/io/xyz_fill_gaps.py
+index 993b63c..220677a 100644
+--- a/neurobox/io/xyz_fill_gaps.py
++++ b/neurobox/io/xyz_fill_gaps.py
+@@ -131,7 +131,6 @@ def fill_gaps(
+         return arr
+ 
+     T, N_markers, N_dims = arr.shape
+-    t_all = np.arange(T)
+ 
+     for gap_start, gap_stop in gap_periods:
+         gap_len = gap_stop - gap_start
+diff --git a/neurobox/pipelines.py b/neurobox/pipelines.py
+index 6959b24..363a26d 100644
+--- a/neurobox/pipelines.py
++++ b/neurobox/pipelines.py
+@@ -548,9 +548,8 @@ def _label_basic_states(trial: "NBTrial") -> None:
+     walk_thr   = 3.0           # cm/s
+     rear_thr   = 1.25 * median_z  # 125% of median head height
+ 
+-    T     = xyz.n_samples
+-    t_all = np.arange(T) / sr
+-    sync  = trial.sync._as_periods() if trial.sync is not None else None
++    T    = xyz.n_samples
++    # trial.sync available for epoch-restricted labelling if needed
+ 
+     def _make_epoch(mask: np.ndarray, label: str, key: str) -> NBEpoch:
+         from neurobox.dtype.epoch import NBEpoch
+diff --git a/neurobox/utils/__init__.py b/neurobox/utils/__init__.py
+index 65873c7..6945b4e 100755
+--- a/neurobox/utils/__init__.py
++++ b/neurobox/utils/__init__.py
+@@ -1 +1 @@
+-from .copytree import copytree
++from .copytree import copytree
+diff --git a/neurobox/utils/copytree.py b/neurobox/utils/copytree.py
+index f0e6cdf..a04fd0a 100755
+--- a/neurobox/utils/copytree.py
++++ b/neurobox/utils/copytree.py
+@@ -1,10 +1,10 @@
+-
+-import os, shutil
+-def copytree(src, dst, symlinks=False, ignore=None):
+-    for item in os.listdir(src):
+-        s = os.path.join(src, item)
+-        d = os.path.join(dst, item)
+-        if os.path.isdir(s):
+-            shutil.copytree(s, d, symlinks, ignore)
+-        else:
+-            shutil.copy2(s, d)
++
++import os, shutil
++def copytree(src, dst, symlinks=False, ignore=None):
++    for item in os.listdir(src):
++        s = os.path.join(src, item)
++        d = os.path.join(dst, item)
++        if os.path.isdir(s):
++            shutil.copytree(s, d, symlinks, ignore)
++        else:
++            shutil.copy2(s, d)
+diff --git a/neurobox/utils/sync/__init__.py b/neurobox/utils/sync/__init__.py
+index 73640cc..55d8998 100755
+--- a/neurobox/utils/sync/__init__.py
++++ b/neurobox/utils/sync/__init__.py
+@@ -1 +1 @@
+-from .sync_nlx_vicon import sync_nlx_vicon
++from .sync_nlx_vicon import sync_nlx_vicon
+diff --git a/neurobox/utils/sync/sync_nlx_vicon.py b/neurobox/utils/sync/sync_nlx_vicon.py
+index 44f77c5..1e36c16 100755
+--- a/neurobox/utils/sync/sync_nlx_vicon.py
++++ b/neurobox/utils/sync/sync_nlx_vicon.py
+@@ -1,4 +1,4 @@
+-
+-def sync_nlx_vicon(ttl_value):
+-    print(ttl_value)
+-    pass
++
++def sync_nlx_vicon(ttl_value):
++    print(ttl_value)
++    pass
+-- 
+2.43.0
+

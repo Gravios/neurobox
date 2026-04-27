@@ -41,6 +41,7 @@ dependencies = [
     "scipy>=1.12",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
+    "pandas>=2.0",        # load_position_motive_csv    
 ]
 
 [project.optional-dependencies]
@@ -49,7 +50,6 @@ dev = [
     "pytest-cov",
 ]
 full = [
-    "pandas>=2.0",        # load_position_motive_csv
     "scikit-learn>=1.4",  # neural_scattering integration
 ]
 

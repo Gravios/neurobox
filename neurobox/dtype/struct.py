@@ -1,9 +1,10 @@
 
 class Struct:
 
-    def __init__(self, dictionary={}):
-        for name, value in dictionary.items():
-            self.__setattr__( name, value)
+    def __init__(self, dictionary=None):
+        if dictionary is not None:
+            for name, value in dictionary.items():
+                self.__setattr__(name, value)
         
     def __setattr__(self, name, value):
         self.__dict__[name] = value
