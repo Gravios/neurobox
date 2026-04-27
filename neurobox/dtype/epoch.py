@@ -362,7 +362,7 @@ class NBEpoch:
             new_n = int(round(old_n / self.samplerate * new_samplerate))
             # Nearest-neighbour: map each output time to the closest input index
             t_new = np.arange(new_n) / new_samplerate
-            idx   = np.round(t_new * self.samplerate).astype(int).clip(0, old_n - 1)
+            idx   = np.round(t_new * self.samplerate).astype(np.int64).clip(0, old_n - 1)
             result.data = self.data[idx]
         result.samplerate = new_samplerate
         return result

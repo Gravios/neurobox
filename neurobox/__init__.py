@@ -62,6 +62,9 @@ from neurobox.io import (
     fill_gaps,
     fill_xyz_gaps,
     detect_gaps,
+    load_units,
+    UnitAnnotation,
+    map_annotations_to_global_ids,
 )
 
 from neurobox.config.config import (
@@ -86,7 +89,6 @@ from neurobox.analysis import (
     multitaper_cross_spectrogram, multitaper_psd,
     whiten_ar, fet_spec,
 )
-from neurobox.io import load_units, UnitAnnotation, map_annotations_to_global_ids
 
 __all__ = [
     "__version__",

@@ -22,11 +22,11 @@ Requires-Dist: numpy>=1.26
 Requires-Dist: scipy>=1.12
 Requires-Dist: pyyaml>=6.0
 Requires-Dist: python-dotenv>=1.0
+Requires-Dist: pandas>=2.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8; extra == "dev"
 Requires-Dist: pytest-cov; extra == "dev"
 Provides-Extra: full
-Requires-Dist: pandas>=2.0; extra == "full"
 Requires-Dist: scikit-learn>=1.4; extra == "full"
 
 # neurobox

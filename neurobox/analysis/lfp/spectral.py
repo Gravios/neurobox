@@ -56,7 +56,7 @@ import numpy as np
 
 # scipy.signal.windows.dpss is the correct path in scipy ≥ 1.1
 from scipy.signal.windows import dpss as _dpss
-from scipy.linalg import solve_triangular
+from scipy.linalg         import solve_toeplitz
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
@@ -270,7 +270,6 @@ def _compute_periodogram(
     K = n_tapers, C = n_channels.  Normalised as in ``mtchglong`` (sqrt(2)).
     """
     T, C = segment.shape
-    K = tapers.shape[1]
 
     if detrend == "linear":
         segment = _detrend_linear(segment)
@@ -638,7 +637,6 @@ def whiten_ar(
         numerator; same as MATLAB ``arburg`` output).
     """
     from scipy.signal import lfilter
-    from scipy.linalg import solve_toeplitz
 
     if x.ndim == 1:
         x = x[:, None]
@@ -776,7 +774,7 @@ def fet_spec(
 
     # 1. AR whitening
     if whiten:
-        data_w, ar_out = whiten_ar(
+        data_w, _ = whiten_ar(
             data, ar_model=ar_model, samplerate=samplerate
         )
     else:

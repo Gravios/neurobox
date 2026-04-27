@@ -201,7 +201,6 @@ def _waveform_metrics(
     best_ch    = int(amp_per_ch.argmax())
     mwf        = mean_wf[:, best_ch]   # (n_samples,)
 
-    n_samp     = len(mwf)
     dt_ms      = 1000.0 / samplerate
 
     # ── SNR ───────────────────────────────────────────────────────────── #
