@@ -1300,20 +1300,79 @@ Middle-click  Move nearest boundary
             freqs  = cached["f"]
             times  = cached["t"]
         elif raw_lfp is not None:
-            print("Computing spectrogram ...")
             if spec_params is None:
                 spec_params = SpectralParams.for_lfp(lfp_sr)
                 spec_params.freq_range = freq_range
-            # Whiten then spectrogram
-            from neurobox.analysis.lfp.spectral import whiten_ar
-            w_lfp, _ = whiten_ar(raw_lfp.astype(np.float64), ar_order=2, samplerate=lfp_sr)
-            result = multitaper_spectrogram(w_lfp, spec_params)
-            # result.power: (T_win, F, C) → rearrange to (F, T_win, C)
-            spec   = np.moveaxis(result.power, 0, 1)
-            freqs  = result.freqs
-            times  = result.times
-            np.savez(spec_file, y=spec, f=freqs, t=times)
-            print(f"Saved spectrogram → {spec_file.name}")
+
+            # ── Estimate total windows for the progress dialog ────────── #
+            n_total = max(
+                1, (raw_lfp.shape[0] - spec_params.win_len) // spec_params.step + 1
+            )
+
+            # ── Progress dialog ───────────────────────────────────────── #
+            progress_dlg = QProgressDialog(
+                "Computing spectrogram…", "Cancel",
+                0, n_total,
+            )
+            progress_dlg.setWindowTitle("neurobox — CheckEegStates")
+            progress_dlg.setWindowModality(Qt.WindowModality.WindowModal)
+            progress_dlg.setMinimumDuration(500)   # only show if >500 ms
+            progress_dlg.setValue(0)
+
+            # ── Worker + thread ───────────────────────────────────────── #
+            spec = freqs = times = None
+            worker = _SpectrogramWorker(
+                raw_lfp    = raw_lfp,
+                spec_params = spec_params,
+                lfp_sr     = lfp_sr,
+                spec_file  = spec_file,
+                whiten     = True,
+            )
+            thread = QThread()
+            worker.moveToThread(thread)
+
+            result_holder: dict = {}
+
+            def _on_progress(n_done: int, n_total_: int) -> None:
+                progress_dlg.setValue(n_done)
+                if progress_dlg.wasCanceled():
+                    worker.cancel()
+
+            def _on_finished(result: dict) -> None:
+                result_holder.update(result)
+                thread.quit()
+
+            def _on_error(msg: str) -> None:
+                if msg != "Cancelled":
+                    QMessageBox.critical(
+                        None, "Spectrogram error",
+                        f"Failed to compute spectrogram:\n{msg}"
+                    )
+                thread.quit()
+
+            worker.progress.connect(_on_progress)
+            worker.finished.connect(_on_finished)
+            worker.error.connect(_on_error)
+            thread.started.connect(worker.run)
+
+            thread.start()
+
+            # Spin the event loop until the thread finishes
+            # (allows the progress dialog and Cancel button to work)
+            while thread.isRunning():
+                app.processEvents()
+
+            progress_dlg.close()
+            thread.wait()
+
+            if result_holder:
+                spec  = result_holder["spec"]
+                freqs = result_holder["freqs"]
+                times = result_holder["times"]
+                print(f"Saved spectrogram → {spec_file.name}")
+            else:
+                spec = freqs = times = None
+
         else:
             spec = freqs = times = None
 
@@ -1349,6 +1408,90 @@ Middle-click  Move nearest boundary
             app.exec()
 
         return win
+
+
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# Background spectrogram worker                                               #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+class _SpectrogramWorker(QObject):
+    """Computes the multi-taper spectrogram on a background QThread.
+
+    Mirrors the 'long computation' pattern from CheckEegStates_aux.m —
+    in MATLAB this froze the UI; here it runs on a worker thread with
+    live progress updates.
+
+    Signals
+    -------
+    progress(int, int)    — (n_windows_done, n_windows_total)
+    finished(result)      — emits the completed SpectrumResult
+    error(str)            — emits an error message on failure
+    """
+
+    progress = Signal(int, int)
+    finished = Signal(object)
+    error    = Signal(str)
+
+    def __init__(
+        self,
+        raw_lfp:      "np.ndarray",     # (T, C) int16 or float
+        spec_params:  "SpectralParams",
+        lfp_sr:       float,
+        spec_file:    "Path | None",    # where to cache the result
+        whiten:       bool = True,
+        parent:       "QObject | None" = None,
+    ) -> None:
+        super().__init__(parent)
+        self._raw_lfp   = raw_lfp
+        self._params    = spec_params
+        self._lfp_sr    = lfp_sr
+        self._spec_file = spec_file
+        self._whiten    = whiten
+        self._cancelled = False
+
+    def cancel(self) -> None:
+        """Request early termination (checked between blocks)."""
+        self._cancelled = True
+
+    @Slot()
+    def run(self) -> None:
+        """Entry point — called by QThread.started signal."""
+        try:
+            from neurobox.analysis.lfp.spectral import (
+                multitaper_spectrogram, whiten_ar
+            )
+            data = self._raw_lfp.astype(np.float64)
+
+            # Whitening (fast — runs synchronously)
+            if self._whiten:
+                data, _ = whiten_ar(data, ar_order=2, samplerate=self._lfp_sr)
+
+            def _on_progress(n_done: int, n_total: int) -> None:
+                if self._cancelled:
+                    raise InterruptedError("Cancelled by user")
+                self.progress.emit(n_done, n_total)
+
+            result = multitaper_spectrogram(
+                data, self._params, progress=_on_progress
+            )
+
+            # (T_win, F, C) → (F, T_win, C)
+            spec  = np.moveaxis(result.power, 0, 1)
+            freqs = result.freqs
+            times = result.times
+
+            if self._spec_file is not None and not self._cancelled:
+                np.savez(self._spec_file, y=spec, f=freqs, t=times)
+
+            self.finished.emit({"spec": spec, "freqs": freqs, "times": times})
+
+        except InterruptedError:
+            self.error.emit("Cancelled")
+        except Exception as exc:
+            import traceback
+            self.error.emit(traceback.format_exc())
 
 
 
