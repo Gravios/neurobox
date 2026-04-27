@@ -12,9 +12,13 @@ neurobox.egg-info/requires.txt
 neurobox.egg-info/top_level.txt
 neurobox/analysis/__init__.py
 neurobox/analysis/neuron_quality.py
+neurobox/analysis/transform_origin.py
+neurobox/analysis/lfp/__init__.py
+neurobox/analysis/lfp/spectral.py
 neurobox/config/__init__.py
 neurobox/config/config.py
 neurobox/dtype/__init__.py
+neurobox/dtype/ang.py
 neurobox/dtype/data.py
 neurobox/dtype/epoch.py
 neurobox/dtype/lfp.py
@@ -25,6 +29,7 @@ neurobox/dtype/spikes.py
 neurobox/dtype/stc.py
 neurobox/dtype/struct.py
 neurobox/dtype/sync_pipelines.py
+neurobox/dtype/ufr.py
 neurobox/dtype/xyz.py
 neurobox/io/__init__.py
 neurobox/io/get_event_times.py
