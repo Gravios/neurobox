@@ -322,8 +322,9 @@ def _cross_products_block(
 # ─────────────────────────────────────────────────────────────────────────── #
 
 def _multitaper_engine(
-    x:      np.ndarray,      # (T_signal, C)
-    params: SpectralParams,
+    x:        np.ndarray,        # (T_signal, C)
+    params:   SpectralParams,
+    progress: "callable | None" = None,   # progress(n_done, n_total)
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Shared computation kernel for all spectral functions.
 
@@ -393,6 +394,8 @@ def _multitaper_engine(
         cross_blk = _cross_products_block(per_block, K)
         # cross_blk has shape (F, C, C, n_chunk); reorder → (n_chunk, F, C, C)
         cross_out[i0:i1] = np.moveaxis(cross_blk, -1, 0)
+        if progress is not None:
+            progress(i1, n_windows)
 
     return cross_out, freqs, times
 
@@ -402,9 +405,10 @@ def _multitaper_engine(
 # ─────────────────────────────────────────────────────────────────────────── #
 
 def multitaper_spectrogram(
-    x:      np.ndarray,
-    params: Optional[SpectralParams] = None,
+    x:        np.ndarray,
+    params:   Optional[SpectralParams] = None,
     samplerate: Optional[float] = None,
+    progress: "callable | None" = None,
 ) -> SpectrumResult:
     """Compute a multi-taper power spectrogram.
 
@@ -430,7 +434,7 @@ def multitaper_spectrogram(
     if params is None:
         params = SpectralParams.for_lfp(samplerate or 1250.0)
 
-    cross, freqs, times = _multitaper_engine(x, params)
+    cross, freqs, times = _multitaper_engine(x, params, progress=progress)
     # Diagonal of cross gives auto-spectrum (real; complex part == 0)
     # Shape: (T, F, C, C) → diagonal over last two axes → (T, F, C)
     power_raw = np.einsum("...ii->...i", cross).real   # (T, F, C)
@@ -442,10 +446,11 @@ def multitaper_spectrogram(
 
 
 def multitaper_coherogram(
-    x:        np.ndarray,
-    params:   Optional[SpectralParams] = None,
+    x:          np.ndarray,
+    params:     Optional[SpectralParams] = None,
     samplerate: Optional[float] = None,
     return_phase: bool = True,
+    progress:   "callable | None" = None,
 ) -> SpectrumResult:
     """Compute a multi-taper coherogram and phase-ogram.
 
@@ -473,7 +478,7 @@ def multitaper_coherogram(
     if params is None:
         params = SpectralParams.for_lfp(samplerate or 1250.0)
 
-    cross, freqs, times = _multitaper_engine(x, params)
+    cross, freqs, times = _multitaper_engine(x, params, progress=progress)
     # cross: (T, F, C, C) complex
 
     # Auto-spectra on the diagonal
@@ -499,6 +504,7 @@ def multitaper_cross_spectrogram(
     x:        np.ndarray,
     params:   Optional[SpectralParams] = None,
     samplerate: Optional[float] = None,
+    progress: "callable | None" = None,
 ) -> SpectrumResult:
     """Compute the complex cross-spectral matrix (not normalised to coherence).
 
@@ -521,7 +527,7 @@ def multitaper_cross_spectrogram(
     if params is None:
         params = SpectralParams.for_lfp(samplerate or 1250.0)
 
-    cross, freqs, times = _multitaper_engine(x, params)
+    cross, freqs, times = _multitaper_engine(x, params, progress=progress)
     auto  = np.einsum("...ii->...i", cross).real
     power = auto / params.samplerate
 
