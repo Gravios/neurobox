@@ -10,10 +10,18 @@ with the persistence and incremental-update layer stripped out (use
 
 from .occupancy   import occupancy_map, OccupancyResult
 from .place_fields import place_field, PlaceFieldResult
+from .place_field_stats import (
+    place_field_stats,
+    Patch,
+    UnitStats,
+)
 
 __all__ = [
     "occupancy_map",
     "OccupancyResult",
     "place_field",
     "PlaceFieldResult",
+    "place_field_stats",
+    "Patch",
+    "UnitStats",
 ]
