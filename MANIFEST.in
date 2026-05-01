@@ -14,3 +14,6 @@ recursive-include tests *.py
 
 # Type stubs
 recursive-include neurobox py.typed
+
+# Bundled data files (session lists, etc.)
+recursive-include neurobox *.yaml *.yml

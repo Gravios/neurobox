@@ -76,7 +76,7 @@ include = ["neurobox*", "scripts*"]
 exclude = ["tests*", "NeuralynxIO*"]
 
 [tool.setuptools.package-data]
-"neurobox" = ["py.typed"]
+"neurobox" = ["py.typed", "data/session_lists/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
