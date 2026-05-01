@@ -371,6 +371,120 @@ class NBDxyz(NBData):
         new.model = self.model.subset([self.model.markers[i] for i in idx])
         return new
 
+    def add_marker(
+        self,
+        name:        str,
+        data:        np.ndarray,
+        connections: list | None = None,
+        overwrite:   bool = False,
+    ) -> "NBDxyz":
+        """Append (or overwrite) a marker on a copy of this NBDxyz.
+
+        Mirrors :file:`@MTADxyz/addMarker.m` — used to inject derived
+        virtual markers like ``bcom`` (body centre of mass), ``hcom``
+        (head COM), or any custom landmark you compute downstream and
+        want to carry alongside the raw markers.
+
+        The MATLAB original mutated ``Data`` in place; this version
+        returns a new :class:`NBDxyz` (the data array is shared
+        upstream until the new column is appended, so the cost is one
+        allocation of the new ``(T, n_markers+1, n_dims)`` block).
+
+        Parameters
+        ----------
+        name:
+            New marker name.  If a marker by this name already exists
+            and *overwrite* is True, its values are replaced; if
+            *overwrite* is False (default), raises :class:`ValueError`.
+        data:
+            ``(T, n_dims)`` array of marker positions across all time
+            samples.  Must match the existing time and spatial axes
+            of this NBDxyz.
+        connections:
+            Optional list of ``(other_marker_name, this_or_that)`` or
+            ``[name_a, name_b]`` pairs to add to the model's skeleton
+            graph.  Each pair must reference markers that exist in the
+            new model (i.e. either the marker being added or one
+            already present).  Format matches ``NBModel.connections``.
+        overwrite:
+            If True and *name* already exists, replace that marker's
+            values.  If False (default), raises.
+
+        Returns
+        -------
+        NBDxyz
+            A new :class:`NBDxyz` with the marker appended.  The
+            original is unmodified.
+
+        Examples
+        --------
+        Append a body centre of mass::
+
+            from neurobox.analysis.spatial import com  # or compute it yourself
+            bcom = xyz.com(["spine_lower", "spine_middle", "spine_upper"])
+            xyz_with_com = xyz.add_marker(
+                "bcom", bcom,
+                connections=[("bcom", "spine_middle")],
+            )
+
+        Replace an existing marker::
+
+            xyz2 = xyz_with_com.add_marker("bcom", new_bcom_values, overwrite=True)
+        """
+        import copy as _copy
+        if self._data is None:
+            raise RuntimeError("XYZ data not loaded.")
+
+        data = np.asarray(data, dtype=self._data.dtype)
+
+        n_t, n_markers, n_dims = self._data.shape
+        # Coerce data to (T, n_dims) if necessary (allow (T, 1, n_dims))
+        if data.ndim == 3 and data.shape[1] == 1:
+            data = data[:, 0, :]
+        if data.shape != (n_t, n_dims):
+            raise ValueError(
+                f"add_marker: data must have shape ({n_t}, {n_dims}); "
+                f"got {data.shape}"
+            )
+
+        # Already exists?
+        if name in self.model.markers:
+            if not overwrite:
+                raise ValueError(
+                    f"Marker {name!r} already exists; pass overwrite=True to replace."
+                )
+            new = _copy.copy(self)
+            new._data = self._data.copy()
+            new._data[:, self.model.index(name), :] = data
+            return new
+
+        # Append a new marker
+        new_data = np.concatenate(
+            [self._data, data[:, np.newaxis, :]], axis=1
+        )
+        new_markers = list(self.model.markers) + [name]
+        new_connections = [list(c) for c in self.model.connections]
+        if connections:
+            allowed = set(new_markers)
+            for c in connections:
+                if len(c) < 2:
+                    raise ValueError(
+                        f"connection must be a (marker_a, marker_b) pair; got {c!r}"
+                    )
+                a, b = c[0], c[1]
+                if a not in allowed or b not in allowed:
+                    raise ValueError(
+                        f"connection ({a!r}, {b!r}) references a marker "
+                        f"not in the model (after adding {name!r})"
+                    )
+                new_connections.append([a, b])
+
+        from neurobox.dtype.model import NBModel
+        new = _copy.copy(self)
+        new._data = new_data
+        new.model = NBModel(markers=new_markers, connections=new_connections)
+        return new
+
     def get_pose_index(
         self,
         marker_name: str,

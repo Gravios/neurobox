@@ -32,6 +32,15 @@ from .spatial           import (
     place_field, PlaceFieldResult,
     place_field_stats, Patch, UnitStats,
 )
+from .kinematics        import augment_xyz
+from .decoding          import (
+    decode_ufr_boxcar, DecodingResult,
+    prepare_ratemap, prepare_bin_coords,
+    accumulate_decoding_vars, AccumulatedDecoding,
+    create_tensor_mask,
+    CircularBoundary, SquareBoundary, LineBoundary,
+    theta_phase, stc2mat,
+)
 from .transform_origin  import transform_origin, TransformResult
 
 
@@ -69,6 +78,14 @@ __all__ = [
     "occupancy_map", "OccupancyResult",
     "place_field", "PlaceFieldResult",
     "place_field_stats", "Patch", "UnitStats",
+    "augment_xyz",
+    # decoding
+    "decode_ufr_boxcar", "DecodingResult",
+    "prepare_ratemap", "prepare_bin_coords",
+    "accumulate_decoding_vars", "AccumulatedDecoding",
+    "create_tensor_mask",
+    "CircularBoundary", "SquareBoundary", "LineBoundary",
+    "theta_phase", "stc2mat",
     # hmm — requires `pip install 'neurobox[hmm]'`
     "gauss_hmm", "HMMResult",
 ]
