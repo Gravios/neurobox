@@ -1,0 +1,16 @@
+include README.md
+include CHANGELOG.md
+include INSTALL.md
+include LICENSE
+include pyproject.toml
+include setup.py
+include MANIFEST.in
+
+# Cython sources — needed to rebuild the extension from sdist
+recursive-include neurobox *.pyx *.pxd
+
+# Tests are excluded from wheels but kept in sdist
+recursive-include tests *.py
+
+# Type stubs
+recursive-include neurobox py.typed
