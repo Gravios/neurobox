@@ -27,7 +27,23 @@ from .stats             import (
 from .spikes            import (
     ccg, trains_to_ccg, CCGResult,
 )
+from .spatial           import (
+    occupancy_map, OccupancyResult,
+    place_field, PlaceFieldResult,
+)
 from .transform_origin  import transform_origin, TransformResult
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# Lazy HMM import — see neurobox.analysis.stats.__init__ for rationale.       #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+def __getattr__(name: str):
+    if name in ("gauss_hmm", "HMMResult"):
+        from .stats import hmm as _hmm
+        return getattr(_hmm, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "neuron_quality", "NeuronQualityResult",
@@ -49,4 +65,8 @@ __all__ = [
     "FDRResult", "fdr_bh",
     "BinSmoothResult", "bin_smooth",
     "ccg", "trains_to_ccg", "CCGResult",
+    "occupancy_map", "OccupancyResult",
+    "place_field", "PlaceFieldResult",
+    # hmm — requires `pip install 'neurobox[hmm]'`
+    "gauss_hmm", "HMMResult",
 ]
