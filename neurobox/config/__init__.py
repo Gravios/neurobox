@@ -21,6 +21,14 @@ from .session_lists import (
     available_session_lists,
     load_session_list,
 )
+from .standards import (
+    MazeInfo,
+    load_mazes,
+    get_maze,
+    load_markers,
+    load_marker_connections,
+    make_standard_model,
+)
 __all__ = [
     "configure_project",
     "discover_mazes",
@@ -36,4 +44,11 @@ __all__ = [
     "AnatLocation",
     "available_session_lists",
     "load_session_list",
+    # Standard reference data: mazes, markers, skeleton connections
+    "MazeInfo",
+    "load_mazes",
+    "get_maze",
+    "load_markers",
+    "load_marker_connections",
+    "make_standard_model",
 ]

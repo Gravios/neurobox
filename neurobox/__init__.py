@@ -103,6 +103,7 @@ from neurobox.analysis import (
     ccg, trains_to_ccg, CCGResult,
     occupancy_map, OccupancyResult,
     place_field, PlaceFieldResult,
+    place_field_stats, Patch, UnitStats,
 )
 
 __all__ = [
@@ -205,6 +206,9 @@ __all__ = [
     "OccupancyResult",
     "place_field",
     "PlaceFieldResult",
+    "place_field_stats",
+    "Patch",
+    "UnitStats",
     # hmm — requires `pip install 'neurobox[hmm]'`
     "gauss_hmm",
     "HMMResult",

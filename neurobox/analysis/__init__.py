@@ -30,6 +30,7 @@ from .spikes            import (
 from .spatial           import (
     occupancy_map, OccupancyResult,
     place_field, PlaceFieldResult,
+    place_field_stats, Patch, UnitStats,
 )
 from .transform_origin  import transform_origin, TransformResult
 
@@ -67,6 +68,7 @@ __all__ = [
     "ccg", "trains_to_ccg", "CCGResult",
     "occupancy_map", "OccupancyResult",
     "place_field", "PlaceFieldResult",
+    "place_field_stats", "Patch", "UnitStats",
     # hmm — requires `pip install 'neurobox[hmm]'`
     "gauss_hmm", "HMMResult",
 ]

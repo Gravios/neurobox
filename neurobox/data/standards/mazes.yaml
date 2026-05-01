@@ -1,0 +1,235 @@
+description: 'Standard mazes recognised by neurobox. Ported from MTAConfiguration.m::MTAMazes.
+
+  `shape` is one of: circle, rectangle, square, line, W. Extents are [min, max] per axis in millimetres. `visual_extent` defines the bounding region for plotting;
+  `computational_extent` defines the spatial domain for analyses.'
+mazes:
+- code: cof
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: chr
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: cpm
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-1000.0, 1000.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+  computational_extent_xyz_mm:
+  - [-1000.0, 1000.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+- code: cpf
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-1000.0, 1000.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+  computational_extent_xyz_mm:
+  - [-1000.0, 1000.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+- code: hcf
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: nor
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: odr
+  shape: W
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: cot
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: ont
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
+- code: sof
+  shape: square
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [0.0, 1000.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [0.0, 1000.0]
+- code: sov
+  shape: square
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [0.0, 1000.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [0.0, 1000.0]
+- code: spb
+  shape: square
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [-100.0, 500.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-700.0, 700.0]
+  - [-100.0, 500.0]
+- code: vrr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-1000.0, 1000.0]
+  - [-100.0, 500.0]
+- code: shr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-300.0, 500.0]
+  - [-300.0, 300.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-300.0, 300.0]
+  - [-300.0, 300.0]
+  - [0.0, 360.0]
+- code: rov
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-800.0, 800.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-600.0, 600.0]
+  - [-350.0, 350.0]
+  - [0.0, 300.0]
+- code: vre
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-800.0, 800.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-600.0, 600.0]
+  - [-350.0, 350.0]
+  - [0.0, 300.0]
+- code: tfr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-800.0, 800.0]
+  - [-500.0, 500.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-800.0, 800.0]
+  - [-500.0, 500.0]
+  - [-100.0, 300.0]
+- code: frr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+- code: ofr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+- code: orr
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+- code: rof
+  shape: rectangle
+  visual_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-700.0, 700.0]
+  - [-600.0, 600.0]
+  - [-100.0, 300.0]
+- code: lin
+  shape: line
+  visual_extent_xyz_mm:
+  - [-1400.0, 1400.0]
+  - [-300.0, 300.0]
+  - [-100.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-1400.0, 1400.0]
+  - [-300.0, 300.0]
+  - [-100.0, 300.0]
+- code: tm
+  shape: circle
+  visual_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 300.0]
+  computational_extent_xyz_mm:
+  - [-500.0, 500.0]
+  - [-500.0, 500.0]
+  - [0.0, 360.0]
