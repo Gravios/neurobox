@@ -101,6 +101,8 @@ from neurobox.analysis import (
     FDRResult, fdr_bh,
     BinSmoothResult, bin_smooth,
     ccg, trains_to_ccg, CCGResult,
+    occupancy_map, OccupancyResult,
+    place_field, PlaceFieldResult,
 )
 
 __all__ = [
@@ -198,8 +200,27 @@ __all__ = [
     "ccg",
     "trains_to_ccg",
     "CCGResult",
+    # spatial
+    "occupancy_map",
+    "OccupancyResult",
+    "place_field",
+    "PlaceFieldResult",
+    # hmm — requires `pip install 'neurobox[hmm]'`
+    "gauss_hmm",
+    "HMMResult",
     # unit annotations
     "load_units",
     "UnitAnnotation",
     "map_annotations_to_global_ids",
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# Lazy HMM import at top level                                                #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+def __getattr__(name: str):
+    if name in ("gauss_hmm", "HMMResult"):
+        from .analysis.stats import hmm as _hmm
+        return getattr(_hmm, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

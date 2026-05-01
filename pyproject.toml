@@ -56,6 +56,9 @@ dev = [
 full = [
     "scikit-learn>=1.4",  # neural_scattering integration
 ]
+hmm = [
+    "hmmlearn>=0.3",      # neurobox.analysis.stats.gauss_hmm
+]
 
 [project.urls]
 Repository = "https://github.com/Gravios/neurobox"

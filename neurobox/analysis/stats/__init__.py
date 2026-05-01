@@ -3,6 +3,12 @@ neurobox.analysis.stats
 ========================
 Statistical primitives — circular statistics, multiple-comparison
 correction, smoothing, HMM utilities.
+
+The :func:`gauss_hmm` / :class:`HMMResult` symbols require the
+optional ``hmmlearn`` dependency.  They're imported lazily so the rest
+of the module loads without it.  Install with::
+
+    pip install 'neurobox[hmm]'
 """
 
 from .circular import (
@@ -25,6 +31,20 @@ from .smoothing import (
     bin_smooth,
 )
 
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# Lazy HMM import — only triggered if the user actually accesses these names. #
+# The import inside gauss_hmm itself raises a helpful ImportError when        #
+# hmmlearn is missing.                                                         #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+def __getattr__(name: str):
+    if name in ("gauss_hmm", "HMMResult"):
+        from . import hmm as _hmm
+        return getattr(_hmm, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 __all__ = [
     # circular
     "RayleighResult",
@@ -42,4 +62,7 @@ __all__ = [
     # smoothing
     "BinSmoothResult",
     "bin_smooth",
+    # hmm (lazy — requires `pip install 'neurobox[hmm]'`)
+    "gauss_hmm",
+    "HMMResult",
 ]
