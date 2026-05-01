@@ -1,0 +1,367 @@
+name: EgoProCode2D_CA3
+sessions:
+- sessionName: er01-20110719
+  subjects:
+  - er01
+  subject:
+    name: er01
+    correction:
+      thetaPhase: 3.141592653589793
+      headYaw: 0.225
+      headBody: -0.084
+      headRoll: -0.012
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 1
+      - 8
+      ripple:
+      - 17
+      - 18
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/er01'
+    nlx: '{nlx_root}'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x4000'
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: er01-20110721
+  subjects:
+  - er01
+  subject:
+    name: er01
+    correction:
+      thetaPhase: 3.141592653589793
+      headYaw: 0.251
+      headBody: -0.084
+      headRoll: -0.376
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 1
+      - 8
+      ripple:
+      - 17
+      - 18
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/er01'
+    nlx: '{nlx_root}'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x4000'
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: er01-20110722
+  subjects:
+  - er01
+  subject:
+    name: er01
+    correction:
+      thetaPhase: 3.141592653589793
+      headYaw: 0.251
+      headBody: -0.084
+      headRoll: -0.376
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 1
+      - 8
+      ripple:
+      - 17
+      - 18
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/er01/er01'
+    nlx: '{nlx_root}'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x4000'
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: ER06-20130624
+  subjects:
+  - ER06
+  subject:
+    name: ER06
+    correction:
+      thetaPhase: 2.356194490192345
+      headYaw: -0.155
+      headBody: 0.156
+      headRoll: -0.164
+    channelGroup:
+      theta: 48
+      thetarc:
+      - 49
+      - 56
+      ripple:
+      - 17
+      - 18
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/ER06/'
+    ephys: /storage/evgeny/data/processed/ER06/
+  xyzSampleRate: 199.997752
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: Vicon start recording cof
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: -20
+  yOffset: -20
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: Ed10-20140815
+  subjects:
+  - Ed10
+  subject:
+    name: Ed10
+    correction:
+      thetaPhase: 2.0943951023931953
+      headYaw: 0.034
+      headBody: -0.077
+      headRoll: -0.187
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 1
+      - 8
+      ripple:
+      - 17
+      - 18
+      - 19
+      - 20
+      - 21
+      - 22
+      - 23
+      - 24
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/Ed10'
+    nlx: '{nlx_root}/Ed10'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x0002'
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: Ed10-20140816
+  subjects:
+  - Ed10
+  subject:
+    name: Ed10
+    correction:
+      thetaPhase: 2.0943951023931953
+      headYaw: 0.034
+      headBody: -0.077
+      headRoll: -0.187
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 17
+      - 24
+      ripple:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/Ed10'
+    nlx: '{nlx_root}/Ed10'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x0002'
+  includeSyncInd: []
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: Ed10-20140817
+  subjects:
+  - Ed10
+  subject:
+    name: Ed10
+    correction:
+      thetaPhase: 2.0943951023931953
+      headYaw: 0.034
+      headBody: -0.077
+      headRoll: -0.187
+    channelGroup:
+      theta: 8
+      thetarc:
+      - 17
+      - 24
+      ripple:
+      - 1
+      - 2
+      - 3
+      - 4
+      - 5
+      - 6
+      - 7
+      - 8
+  mazeName: cof
+  trialName: gnd
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/Ed10'
+    nlx: '{nlx_root}/Ed10'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x0002'
+  includeSyncInd:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  offsets:
+  - 0
+  - 0
+  xOffset: 0
+  yOffset: 0
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
+- sessionName: jg05-20120329
+  subjects:
+  - jg05
+  subject:
+    name: jg05
+    correction:
+      thetaPhase: 0.7853981633974483
+      headYaw: 0.264
+      headBody: -0.234
+      headRoll: -0.365
+    channelGroup:
+      theta: 71
+      thetarc:
+      - 25
+      - 32
+      ripple:
+      - 70
+      - 71
+      - 72
+      - 73
+      - 74
+      - 75
+  mazeName: cof
+  trialName: all
+  dLoggers:
+  - nlx
+  - vicon
+  dPaths:
+    xyz: '{xyz_root}/jg05'
+    nlx: '{nlx_root}'
+  xyzSampleRate: 119.881035
+  hostServer: lmu
+  dataServer: lmu
+  project: general
+  TTLValue: '0x0040'
+  includeSyncInd: []
+  offsets:
+  - 10
+  - 0
+  xOffset: -50
+  yOffset: 10
+  zOffset: 0
+  stcMode: msnn_ppsvd_raux
