@@ -13,6 +13,7 @@ from .xyz             import NBDxyz
 from .lfp             import NBDlfp
 from .ang             import NBDang
 from .ufr             import NBDufr
+from .fet             import NBDfet
 from .stc             import NBStateCollection
 from .paths           import NBSessionPaths, parse_session_name, build_session_name
 from .session         import NBSession, NBTrial
@@ -29,6 +30,7 @@ __all__ = [
     "NBDlfp",
     "NBDang",
     "NBDufr",
+    "NBDfet",
     "NBStateCollection",
     "NBSessionPaths",
     "parse_session_name",
