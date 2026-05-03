@@ -6,6 +6,7 @@ Core data-structure types.
 
 from .struct          import Struct
 from .epoch           import NBEpoch, select_periods
+from .sync            import StreamSync, TrialWindow
 from .data            import NBData
 from .model           import NBModel
 from .spikes          import NBSpk
@@ -23,6 +24,8 @@ __all__ = [
     "Struct",
     "NBEpoch",
     "select_periods",
+    "StreamSync",
+    "TrialWindow",
     "NBData",
     "NBModel",
     "NBSpk",

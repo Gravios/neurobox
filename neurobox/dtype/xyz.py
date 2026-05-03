@@ -70,11 +70,13 @@ class NBDxyz(NBData):
         name: str = "",
         label: str = "position",
         key: str = "x",
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         super().__init__(
             path=path, filename=filename, data=data,
             samplerate=samplerate, sync=sync, origin=origin,
             type_="TimeSeries", ext="pos", name=name, label=label, key=key,
+            stream_sync=stream_sync,
         )
         if model is not None:
             self.model: NBModel = model

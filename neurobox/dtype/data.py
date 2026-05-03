@@ -100,6 +100,7 @@ class NBData(ABC):
         name: str = "",
         label: str = "",
         key: str = "",
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         self.path: Path | None = Path(path) if path is not None else None
         self.filename: str | None = filename
@@ -114,6 +115,10 @@ class NBData(ABC):
         self.name: str = name
         self.label: str = label
         self.key: str = key
+        # Round-23 multi-segment-aware sync.  Optional — when None,
+        # the data is assumed to be continuous from t=0 at this
+        # stream's samplerate (the simple single-source case).
+        self.stream_sync: "StreamSync | None" = stream_sync
         # Identity hash — computed last so all fields are populated.
         # Mirrors MATLAB MTAData/update_hash.m.
         self.hash: str = ""
@@ -556,6 +561,139 @@ class NBData(ABC):
         d = self._data
         return d <= (other._data if isinstance(other, NBData) else other)
 
+
+    # ------------------------------------------------------------------ #
+    # Trial windowing (round 23 — replaces MTAData.resync)                 #
+    # ------------------------------------------------------------------ #
+
+    def restrict_to_window(
+        self,
+        window:    "TrialWindow",
+        *,
+        fill_gaps: bool = True,
+    ) -> "NBData":
+        """Return a new :class:`NBData` restricted to a trial window.
+
+        The returned object's ``data`` covers exactly the trial's
+        master-clock window at this stream's samplerate.  Samples
+        where ``self.stream_sync`` was actively recording are copied
+        from ``self.data``; gaps inside the window where the stream
+        wasn't recording are zero-filled (when ``fill_gaps=True``,
+        the default — matching MATLAB ``MTAData.resync`` semantics).
+
+        The returned object's ``stream_sync`` is the original
+        intersected with the window, so callers can always recover
+        the valid-vs-gap mask.
+
+        Parameters
+        ----------
+        window:
+            :class:`TrialWindow` defining the master-clock periods of
+            the trial.
+        fill_gaps:
+            If True (default), output is contiguous from the trial's
+            ``t_start`` to ``t_stop`` with zero-fill in stream gaps.
+            If False, output is compact (only the recorded portions
+            concatenated; output length matches the new
+            ``stream_sync.total_samples``).
+
+        Returns
+        -------
+        NBData
+            New instance.  The original is unchanged.
+
+        Notes
+        -----
+        Multi-period :class:`TrialWindow`s (trials that exclude rest
+        intervals) are handled by iterating over each period and
+        concatenating the per-period results — the output is still a
+        single contiguous array whose length equals the trial's total
+        duration × samplerate (when ``fill_gaps=True``) or the total
+        of overlapped recording samples (when False).
+
+        See :class:`StreamSync` for the underlying arithmetic.
+        """
+        from neurobox.dtype.sync import StreamSync, TrialWindow
+
+        if self._data is None:
+            raise RuntimeError(
+                "restrict_to_window: data not loaded; call .load() first."
+            )
+
+        # Build a default sync for streams that don't have one set
+        sync = self.stream_sync
+        if sync is None:
+            n = self._data.shape[0]
+            sync = StreamSync.continuous(
+                duration_sec = n / self.samplerate,
+                samplerate   = self.samplerate,
+            )
+
+        if abs(sync.samplerate - self.samplerate) > 1e-6:
+            raise ValueError(
+                f"stream_sync.samplerate ({sync.samplerate}) doesn't "
+                f"match data.samplerate ({self.samplerate})"
+            )
+
+        sr  = self.samplerate
+        per_period_arrays: list[np.ndarray] = []
+        new_segments:      list[list[float]] = []
+
+        for p_start, p_stop in window.periods:
+            p_start = float(p_start); p_stop = float(p_stop)
+            if fill_gaps:
+                n_out = int(np.round((p_stop - p_start) * sr))
+                # Build a zero-filled buffer for this period
+                shape = (n_out,) + self._data.shape[1:]
+                buf = np.zeros(shape, dtype=self._data.dtype)
+                # Copy in the parts that come from real recording
+                for lo, hi in sync.slice_for_window(p_start, p_stop):
+                    # Map source samples → output offset
+                    src_t0    = sync.local_to_master(lo)
+                    out_lo    = int(np.round((src_t0 - p_start) * sr))
+                    seg_len   = hi - lo
+                    out_hi    = out_lo + seg_len
+                    out_lo    = max(0, out_lo)
+                    out_hi    = min(n_out, out_hi)
+                    src_lo    = lo + (out_lo - int(np.round(
+                        (src_t0 - p_start) * sr
+                    )))
+                    src_hi    = src_lo + (out_hi - out_lo)
+                    if out_hi > out_lo and src_hi > src_lo:
+                        buf[out_lo:out_hi] = self._data[src_lo:src_hi]
+                per_period_arrays.append(buf)
+            else:
+                # Compact: just concat the slices
+                for lo, hi in sync.slice_for_window(p_start, p_stop):
+                    per_period_arrays.append(self._data[lo:hi])
+
+            # Build new segments: per-period overlaps with the source
+            # sync, but expressed in the trial's master-clock frame
+            # (not relative to t_start — keep absolute master time so
+            # downstream callers can still reason in the global frame).
+            for seg_t0, seg_t1 in sync.segments:
+                ov_t0 = max(seg_t0, p_start)
+                ov_t1 = min(seg_t1, p_stop)
+                if ov_t0 < ov_t1:
+                    new_segments.append([ov_t0, ov_t1])
+
+        new_data = (np.concatenate(per_period_arrays, axis=0)
+                     if per_period_arrays
+                     else np.zeros((0,) + self._data.shape[1:],
+                                    dtype=self._data.dtype))
+        new_sync = StreamSync(
+            segments   = (np.asarray(new_segments, dtype=np.float64)
+                            if new_segments else np.zeros((0, 2))),
+            samplerate = sr,
+        )
+
+        # Build the new NBData via copy so subclass-specific fields
+        # (e.g. NBDxyz.model, NBDfet.columns) are preserved.
+        new = self.copy()
+        new._data       = new_data
+        new.stream_sync = new_sync
+        new.update_hash()
+        return new
 
     # ------------------------------------------------------------------ #
     # copy / clear / update paths                                         #

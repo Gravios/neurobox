@@ -48,6 +48,7 @@ import numpy as np
 
 from neurobox.dtype.struct import Struct
 from neurobox.dtype.epoch  import NBEpoch
+from neurobox.dtype.sync   import StreamSync, TrialWindow
 from neurobox.dtype.spikes import NBSpk
 from neurobox.dtype.xyz    import NBDxyz
 from neurobox.dtype.lfp    import NBDlfp
@@ -118,6 +119,10 @@ class NBSession:
         self.par:        Struct | None            = None
         self.samplerate: float | None             = None
         self.sync:       NBEpoch | None           = None
+        # Round 23 — multi-segment-aware trial window.  Set on NBTrial
+        # to drive .restrict_to_window() during data loading.  ``None``
+        # on a plain NBSession means "no restriction — load everything".
+        self.window:     "TrialWindow | None"     = None
         self.xyz:        NBDxyz  | None           = None
         self.lfp:        NBDlfp  | None           = None
         self.spk:        NBSpk   | None           = None
@@ -407,11 +412,21 @@ class NBSession:
                 xyz = NBDxyz(path=self.spath,
                              filename=pos_file.name)
                 xyz.load(pos_file)
-                # When self.sync is set (e.g. NBTrial), restrict the loaded
-                # array to the trial window.  This mirrors MTAData.resync for
-                # xyz: select only frames inside the sync periods.
-                if self.sync is not None and xyz._data is not None:
-                    mask = self.sync.to_mask(xyz.n_samples)
+                # Round 23: prefer self.window (TrialWindow) when set —
+                # the multi-segment-aware path that handles Vicon stop/
+                # restart correctly via xyz.restrict_to_window().
+                if self.window is not None and xyz._data is not None:
+                    xyz = xyz.restrict_to_window(self.window)
+                # Legacy fall-back: self.sync (NBEpoch) — round 22 fix
+                # resamples to xyz rate before masking, but doesn't handle
+                # multi-segment streams.  Kept for backward compat.
+                elif self.sync is not None and xyz._data is not None:
+                    sync_at_xyz = (
+                        self.sync.resample(xyz.samplerate)
+                        if abs(self.sync.samplerate - xyz.samplerate) > 1e-9
+                        else self.sync
+                    )
+                    mask = sync_at_xyz.to_mask(xyz.n_samples)
                     xyz._data = xyz._data[mask]
                 self.xyz = xyz
                 return xyz
@@ -687,6 +702,7 @@ class NBTrial(NBSession):
         sync: "NBEpoch | np.ndarray | None" = None,
         project_id:   str | None = None,
         data_root:    str | Path | None = None,
+        window: "TrialWindow | None" = None,
     ) -> None:
 
         if isinstance(session_name, NBSession):
@@ -705,6 +721,13 @@ class NBTrial(NBSession):
                 overwrite    = overwrite,
             )
 
+        # If the parent NBSession was instantiated without a name, we
+        # have nothing more to set up — match NBSession's early-return
+        # behaviour and let attributes stay unset until the user calls
+        # .load() / .validate() with a name.
+        if not hasattr(self, "name") or self.name is None:
+            return
+
         self.trial    = trial_name
         self.filebase = f"{self.name}.{self.maze}.{self.trial}"
 
@@ -713,20 +736,45 @@ class NBTrial(NBSession):
         if trl_file.exists() and not overwrite:
             with open(trl_file, "rb") as f:
                 ds = pickle.load(f)
-            self.sync = ds.get("sync", self.sync)
+            self.sync   = ds.get("sync",   self.sync)
+            self.window = ds.get("window", self.window)
         elif sync is not None:
             if isinstance(sync, np.ndarray):
                 self.sync = NBEpoch(sync, samplerate=1.0, mode="periods")
             else:
                 self.sync = sync.copy()
 
+        # Round 23: if `window=` was passed explicitly, prefer it.
+        # If only `sync=` was passed (legacy), derive a TrialWindow
+        # from it for the new restrict_to_window-based load path.
+        if window is not None:
+            self.window = window
+        elif self.window is None and self.sync is not None:
+            try:
+                periods = (self.sync.data.astype(np.float64)
+                           if self.sync.mode == "periods"
+                           else self.sync.cast("periods").data.astype(np.float64))
+                # If sync.samplerate != 1.0, the periods need scaling.
+                # The documented convention is samplerate=1.0 → seconds.
+                if abs(self.sync.samplerate - 1.0) > 1e-9:
+                    periods = periods * (1.0 / self.sync.samplerate) * self.sync.samplerate
+                if periods.size > 0:
+                    self.window = TrialWindow(
+                        periods = periods,
+                        label   = self.trial,
+                        name    = self.trial,
+                    )
+            except Exception:
+                # If sync is malformed, leave window as None
+                pass
+
     def save(self, overwrite: bool = False) -> None:  # type: ignore[override]
-        """Persist trial sync to ``<filebase>.trl.pkl``."""
+        """Persist trial sync + window to ``<filebase>.trl.pkl``."""
         trl_file = self.spath / f"{self.filebase}.trl.pkl"
         if trl_file.exists() and not overwrite:
             raise FileExistsError(f"{trl_file} exists.  Pass overwrite=True.")
         with open(trl_file, "wb") as f:
-            pickle.dump({"sync": self.sync}, f,
+            pickle.dump({"sync": self.sync, "window": self.window}, f,
                         protocol=pickle.HIGHEST_PROTOCOL)
 
     def __repr__(self) -> str:

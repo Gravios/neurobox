@@ -82,19 +82,21 @@ class NBDufr(NBData):
         path: Path | str | None = None,
         filename: str | None = None,
         name: str = "",
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         super().__init__(
-            path       = path,
-            filename   = filename,
-            data       = data,
-            samplerate = samplerate,
-            sync       = sync,
-            origin     = origin,
-            type_      = "TimeSeries",
-            ext        = "ufr",
-            name       = name,
-            label      = "ufr",
-            key        = "u",
+            path        = path,
+            filename    = filename,
+            data        = data,
+            samplerate  = samplerate,
+            sync        = sync,
+            origin      = origin,
+            type_       = "TimeSeries",
+            ext         = "ufr",
+            name        = name,
+            label       = "ufr",
+            key         = "u",
+            stream_sync = stream_sync,
         )
         self.unit_ids: np.ndarray = (
             np.asarray(unit_ids, dtype=np.int32)

@@ -83,19 +83,21 @@ class NBDfet(NBData):
         key:         str = "",
         path:        Path | str | None = None,
         filename:    str | None = None,
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         super().__init__(
-            path       = path,
-            filename   = filename,
-            data       = data,
-            samplerate = samplerate,
-            sync       = sync,
-            origin     = origin,
-            type_      = "TimeSeries",
-            ext        = "fet",
-            name       = name,
-            label      = label,
-            key        = key,
+            path        = path,
+            filename    = filename,
+            data        = data,
+            samplerate  = samplerate,
+            sync        = sync,
+            origin      = origin,
+            type_       = "TimeSeries",
+            ext         = "fet",
+            name        = name,
+            label       = label,
+            key         = key,
+            stream_sync = stream_sync,
         )
         if data is not None and columns is None:
             n_cols = (

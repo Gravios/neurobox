@@ -76,19 +76,21 @@ class NBDang(NBData):
         path: Path | str | None = None,
         filename: str | None = None,
         name: str = "",
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         super().__init__(
-            path       = path,
-            filename   = filename,
-            data       = data,
-            samplerate = samplerate,
-            sync       = sync,
-            origin     = origin,
-            type_      = "TimeSeries",
-            ext        = "ang",
-            name       = name,
-            label      = "angles",
+            path        = path,
+            filename    = filename,
+            data        = data,
+            samplerate  = samplerate,
+            sync        = sync,
+            origin      = origin,
+            type_       = "TimeSeries",
+            ext         = "ang",
+            name        = name,
+            label       = "angles",
             key        = "a",
+            stream_sync = stream_sync,
         )
         self.model: NBModel | None = model
 
@@ -185,8 +187,17 @@ class NBDang(NBData):
         if self._data is None:
             raise RuntimeError("Angular data not computed yet.")
 
-        _COMP = {"theta": 0, "azimuth": 0, "phi": 1, "elevation": 1, "r": 2, "dist": 2}
-        ci = _COMP.get(component, component) if isinstance(component, str) else int(component)
+        _COMP = {"theta": 0, "azimuth": 0, "phi": 1, "elevation": 1,
+                  "r": 2, "dist": 2, "rho": 2}
+        if isinstance(component, str):
+            if component not in _COMP:
+                raise ValueError(
+                    f"Unknown component {component!r}; "
+                    f"expected one of {sorted(_COMP.keys())}"
+                )
+            ci = _COMP[component]
+        else:
+            ci = int(component)
 
         def _idx(m):
             return self.model.index(m) if isinstance(m, str) else int(m)

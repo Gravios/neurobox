@@ -474,12 +474,22 @@ class NBEpoch:
         """Save this epoch to a .pkl file.
 
         Mirrors MTADepoch.save / MTAData.save.
+
+        Raises
+        ------
+        FileExistsError
+            If *path* exists and ``overwrite`` is False.  (The previous
+            behaviour was to silently return, which left callers
+            confused when ``load_file`` later raised ``EOFError`` on
+            a zero-byte file.)
         """
         import pickle
         from pathlib import Path
         path = Path(path)
-        if path.exists() and not overwrite:
-            return
+        if path.exists() and path.stat().st_size > 0 and not overwrite:
+            raise FileExistsError(
+                f"{path} already exists; pass overwrite=True to replace."
+            )
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "wb") as f:
             pickle.dump(self, f)
