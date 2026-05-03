@@ -84,9 +84,15 @@ class SkeletonViewer3D(QWidget):
             data = data[np.isfinite(data).all(axis=1)]
             if len(data) > 0:
                 lo = data.min(axis=0); hi = data.max(axis=0)
+                # Avoid degenerate (lo == hi) ranges that make
+                # matplotlib emit a "singular transformation" warning
+                same = lo == hi
+                if same.any():
+                    lo = lo - same.astype(float) * 1.0
+                    hi = hi + same.astype(float) * 1.0
             else:
-                lo = np.array([-100, -100, 0])
-                hi = np.array([100, 100, 200])
+                lo = np.array([-100.0, -100.0, 0.0])
+                hi = np.array([100.0, 100.0, 200.0])
             boundary = np.column_stack([lo, hi])
         self._boundary = np.asarray(boundary)
 

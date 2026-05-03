@@ -274,7 +274,7 @@ class TestMtaBrowserWindow:
         ses = _make_session()
         win = MTABrowserWindow.launch(session=ses, run=False)
         assert win.isVisible()
-        assert win._tabs.count() == 2
+        assert win._tabs.count() == 3        # round 21 added "LFP States"
         # Auto-switched to motion-labelling tab
         assert win._tabs.currentIndex() == 1
         assert win._ml_tab.model is not None
