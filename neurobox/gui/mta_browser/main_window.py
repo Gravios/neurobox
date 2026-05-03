@@ -40,6 +40,7 @@ from neurobox.dtype.session  import NBSession
 from neurobox.dtype.stc      import NBStateCollection
 
 from .data_layer import ProjectIndex, scan_project
+from .lfp_widgets import LfpTraceView, SpectrogramView
 from .model      import PlaybackModel
 from .widgets    import FeaturePanel, SkeletonViewer3D, StateTrackView
 
@@ -557,6 +558,329 @@ class _MotionLabellingTab(QWidget):
 
 
 # ─────────────────────────────────────────────────────────────────────── #
+# LFP-States tab                                                              #
+# ─────────────────────────────────────────────────────────────────────── #
+
+class _LfpStatesTab(QWidget):
+    """LFP-states tab — scrolling spectrogram + LFP trace + state editor.
+
+    Uses the SAME paint-while-scrubbing UX as the Motion-Labelling
+    tab, but the playback model is anchored to whichever NB object
+    drives this panel:
+
+    * If a precomputed :class:`SpectrumResult` is attached, the model
+      runs at the spectrogram's frame rate (typically 5-10 Hz, one
+      frame per spectrogram window).
+    * If only raw LFP is attached, the spectrogram is computed on
+      attach and the model still runs at the resulting frame rate.
+
+    State edits round-trip through ``session.stc``, so labels written
+    here will be visible in the Motion-Labelling tab after a
+    save / refresh, and vice versa.
+    """
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.model: Optional[PlaybackModel] = None
+        self._timer = QTimer(self)
+        self._timer.setInterval(33)              # ~30 fps display rate
+        self._timer.timeout.connect(self._on_tick)
+        self._direction = 0
+        self._spec_view:  Optional[SpectrogramView] = None
+        self._trace_view: Optional[LfpTraceView]    = None
+        self._editor:     Optional[_StateEditorTable] = None
+        self._track:      Optional[StateTrackView]  = None
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(2, 2, 2, 2)
+
+        # Top: spectrogram on the left, state editor on the right
+        self._top_split = QSplitter(Qt.Horizontal)
+        self._spec_placeholder = QLabel(
+            "(spectrogram appears once a session with LFP\n"
+            "or precomputed spectrogram is loaded)",
+        )
+        self._spec_placeholder.setAlignment(Qt.AlignCenter)
+        self._spec_placeholder.setStyleSheet("color: gray;")
+        self._top_split.addWidget(self._spec_placeholder)
+
+        self._editor_placeholder = QLabel("(state editor)")
+        self._editor_placeholder.setAlignment(Qt.AlignCenter)
+        self._editor_placeholder.setStyleSheet("color: gray;")
+        self._top_split.addWidget(self._editor_placeholder)
+        self._top_split.setStretchFactor(0, 3)
+        self._top_split.setStretchFactor(1, 1)
+        outer.addWidget(self._top_split, stretch=3)
+
+        # Middle: raw LFP trace
+        self._trace_placeholder = QLabel(
+            "(raw LFP trace appears once attached)",
+        )
+        self._trace_placeholder.setAlignment(Qt.AlignCenter)
+        self._trace_placeholder.setStyleSheet("color: gray;")
+        self._trace_placeholder.setMinimumHeight(120)
+        outer.addWidget(self._trace_placeholder, stretch=1)
+
+        # Bottom: state-track + scrubber
+        self._track_placeholder = QLabel(
+            "(state track appears once attached)",
+        )
+        self._track_placeholder.setAlignment(Qt.AlignCenter)
+        self._track_placeholder.setStyleSheet("color: gray;")
+        self._track_placeholder.setMinimumHeight(100)
+        outer.addWidget(self._track_placeholder, stretch=1)
+
+        controls = QHBoxLayout()
+        self.play_btn  = QPushButton("▶")
+        self.stop_btn  = QPushButton("⏸")
+        self.back_btn  = QPushButton("◀")
+        self.scrubber  = QSlider(Qt.Horizontal)
+        self.idx_label = QLabel("frame 0 / 0")
+        self.scrubber.setMinimum(0); self.scrubber.setMaximum(0)
+        self.scrubber.valueChanged.connect(self._on_scrub)
+        self.play_btn.clicked.connect(lambda: self._set_direction(+1))
+        self.back_btn.clicked.connect(lambda: self._set_direction(-1))
+        self.stop_btn.clicked.connect(lambda: self._set_direction(0))
+        for w in (self.back_btn, self.play_btn, self.stop_btn):
+            w.setMaximumWidth(40)
+        controls.addWidget(self.back_btn)
+        controls.addWidget(self.play_btn)
+        controls.addWidget(self.stop_btn)
+        controls.addWidget(self.scrubber, stretch=1)
+        controls.addWidget(self.idx_label)
+        outer.addLayout(controls)
+
+    # ── Attach API ───────────────────────────────────────────────── #
+
+    def attach_lfp_data(
+        self,
+        session,
+        *,
+        spectrogram   = None,        # SpectrumResult | None
+        lfp           = None,        # ndarray | None
+        lfp_samplerate = None,       # float | None
+        spec_kwargs   = None,        # dict | None
+    ) -> None:
+        """Attach session data and (re)build all child widgets.
+
+        The model's frame rate is determined by the loaded NB object:
+
+        * If *spectrogram* is given (a :class:`SpectrumResult`), the
+          model runs at that spectrogram's frame rate (one model
+          sample = one spectrogram window).
+        * If only *lfp* is given, the spectrogram is computed
+          synchronously on attach and the resulting frame rate
+          drives the model.
+
+        Parameters
+        ----------
+        session:
+            The :class:`NBSession` whose ``stc`` is the canonical
+            state collection.
+        spectrogram:
+            Pre-computed :class:`SpectrumResult` (recommended path).
+        lfp:
+            Raw signal — fallback when *spectrogram* is None.
+        lfp_samplerate:
+            Hz of *lfp*.  Required when *lfp* is provided.
+        spec_kwargs:
+            Forwarded to :class:`SpectralParams` when computing.
+        """
+        # Build the spectrogram view first; its frame_rate_hz drives
+        # the model rate.
+        if spectrogram is None and lfp is None:
+            raise ValueError(
+                "attach_lfp_data needs either `spectrogram=` or `lfp=`"
+            )
+
+        # Tear down old children
+        for slot in (0, 1):
+            old = self._top_split.widget(slot)
+            if old is not None:
+                old.deleteLater()
+        old_trace = self.layout().itemAt(1).widget()
+        if old_trace is not None:
+            old_trace.deleteLater()
+        old_track = self.layout().itemAt(2).widget()
+        if old_track is not None:
+            old_track.deleteLater()
+
+        # Construct a temporary model with the right rate so the
+        # SpectrogramView can subscribe to it.  We need to know the
+        # frame rate BEFORE we can build the model.  Strategy: peek
+        # at the spectrogram's times array directly.
+        if spectrogram is not None:
+            spec_obj = spectrogram
+        else:
+            # Compute synchronously to determine frame rate
+            from neurobox.analysis.lfp.spectral import (
+                SpectralParams, multitaper_spectrogram,
+            )
+            sk = dict(spec_kwargs or {})
+            sk.setdefault("samplerate", float(lfp_samplerate))
+            sk.setdefault("n_fft",      1024)
+            sk.setdefault("win_len",    max(64, int(round(lfp_samplerate))))
+            sk.setdefault("n_overlap",  max(0, int(round(lfp_samplerate * 0.8))))
+            sk.setdefault("freq_range", (1.0, 100.0))
+            params   = SpectralParams(**sk)
+            spec_obj = multitaper_spectrogram(
+                lfp.astype(np.float64) if lfp.ndim == 2 else lfp[:, None].astype(np.float64),
+                params,
+            )
+
+        # Frame rate from the spectrogram's times array
+        if spec_obj.times.size >= 2 and \
+                np.isfinite(spec_obj.times[1] - spec_obj.times[0]) and \
+                spec_obj.times[1] != spec_obj.times[0]:
+            frame_rate = float(1.0 / (spec_obj.times[1] - spec_obj.times[0]))
+        else:
+            frame_rate = float(lfp_samplerate or 1.0)
+        n_frames = int(spec_obj.power.shape[0]
+                        if spec_obj.power.ndim > 2 else 1)
+
+        self.model = PlaybackModel.from_data(
+            session    = session,
+            n_samples  = n_frames,
+            samplerate = frame_rate,
+        )
+
+        # Build widgets
+        self._spec_view = SpectrogramView(
+            self.model, spectrogram=spec_obj, window_seconds=5.0,
+        )
+        self._editor = _StateEditorTable(self.model)
+        self._top_split.insertWidget(0, self._spec_view)
+        self._top_split.insertWidget(1, self._editor)
+        self._top_split.setStretchFactor(0, 3)
+        self._top_split.setStretchFactor(1, 1)
+
+        # LFP trace (only when raw LFP is available)
+        if lfp is not None:
+            self._trace_view = LfpTraceView(
+                self.model, lfp, float(lfp_samplerate),
+                window_seconds=1.0,
+            )
+            self.layout().insertWidget(1, self._trace_view, stretch=1)
+        else:
+            placeholder = QLabel(
+                "(raw LFP trace not available — only the precomputed "
+                "spectrogram was provided)",
+            )
+            placeholder.setAlignment(Qt.AlignCenter)
+            placeholder.setStyleSheet("color: gray;")
+            placeholder.setMinimumHeight(80)
+            self.layout().insertWidget(1, placeholder, stretch=1)
+
+        self._track = StateTrackView(self.model)
+        self.layout().insertWidget(2, self._track, stretch=1)
+
+        # Scrubber range
+        self.scrubber.setMaximum(max(0, n_frames - 1))
+        self.scrubber.setValue(0)
+        self.model.subscribe(self._on_model_event)
+        self._on_model_event("idx")
+
+    # ── Refresh from session.stc ──────────────────────────────────── #
+
+    def refresh_from_session(self) -> None:
+        """Rebuild the model's per-state masks from session.stc.
+
+        Called when this tab becomes visible so it picks up state
+        edits made in the Motion-Labelling tab.
+        """
+        if self.model is not None:
+            self.model._populate_states_from_session()
+            self.model._emit("states")
+            self.model._emit("states_data")
+
+    def commit_to_session(self) -> None:
+        """Push this tab's state edits to session.stc so other tabs
+        can see them on their next refresh."""
+        if self.model is not None:
+            self.model.update_session_stc(mode="manual")
+
+    # ── Listener / scrubber wiring (mirrors _MotionLabellingTab) ─── #
+
+    def _on_model_event(self, event: str) -> None:
+        if event == "idx" and self.model is not None:
+            blocked = self.scrubber.blockSignals(True)
+            self.scrubber.setValue(self.model.idx)
+            self.scrubber.blockSignals(blocked)
+            seconds = self.model.idx / max(self.model.samplerate, 1e-9)
+            self.idx_label.setText(
+                f"frame {self.model.idx} / {self.model.n_samples}  "
+                f"({seconds:.2f} s)"
+            )
+
+    def _on_scrub(self, value: int) -> None:
+        if self.model is not None:
+            self.model.set_idx(int(value))
+
+    def _set_direction(self, d: int) -> None:
+        self._direction = int(d)
+        if self.model is None:
+            return
+        if d == 0:
+            self._timer.stop()
+            self.model.set_paused(True)
+        else:
+            self._timer.start()
+            self.model.set_paused(False)
+
+    def _on_tick(self) -> None:
+        if self.model is None or self._direction == 0:
+            return
+        speed = max(1, self.model.play_speed)
+        self.model.step(self._direction * speed)
+        if self.model.idx == 0 and self._direction < 0:
+            self._set_direction(0)
+        if self.model.idx >= self.model.n_samples - 1 and \
+                self._direction > 0:
+            self._set_direction(0)
+
+    # ── Key events (same as Motion-Labelling, minus the 1/2/3 view) ─ #
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:                # noqa: N802
+        if self.model is None:
+            super().keyPressEvent(event); return
+        key  = event.key()
+        text = event.text()
+        mods = event.modifiers()
+
+        if mods & Qt.ControlModifier and key == Qt.Key_Right:
+            self.model.step(+50); return
+        if mods & Qt.ControlModifier and key == Qt.Key_Left:
+            self.model.step(-50); return
+        if key == Qt.Key_Space:
+            self._set_direction(0 if self._direction != 0 else +1); return
+        if key == Qt.Key_Right:
+            self._set_direction(+1); return
+        if key == Qt.Key_Left:
+            self._set_direction(-1); return
+        if key == Qt.Key_Up:
+            self.model.set_play_speed(self.model.play_speed + 1); return
+        if key == Qt.Key_Down:
+            self.model.set_play_speed(self.model.play_speed - 1); return
+        if key in (Qt.Key_Delete, Qt.Key_Backspace):
+            self.model.set_erase_mode(not self.model.erase_mode); return
+
+        # State toggle by single character
+        if text and len(text) == 1:
+            for label, k in self.model.state_keys.items():
+                if k == text:
+                    if (self.model.current_label == label
+                            and not self.model.erase_mode):
+                        self.model.set_current_label(None)
+                    else:
+                        self.model.set_current_label(label)
+                        self.model.set_erase_mode(False)
+                    return
+        super().keyPressEvent(event)
+
+
+# ─────────────────────────────────────────────────────────────────────── #
 # Top-level window                                                            #
 # ─────────────────────────────────────────────────────────────────────── #
 
@@ -574,14 +898,18 @@ class MTABrowserWindow(QMainWindow):
 
         self._dm_tab = _DataManagementTab()
         self._ml_tab = _MotionLabellingTab()
+        self._lfp_tab = _LfpStatesTab()
         self._tabs.addTab(self._dm_tab, "Data Management")
         self._tabs.addTab(self._ml_tab, "Motion Labelling")
+        self._tabs.addTab(self._lfp_tab, "LFP States")
+        self._tabs.currentChanged.connect(self._on_tab_changed)
 
         self._dm_tab.session_loaded.connect(self._on_session_loaded)
 
         sb = QStatusBar()
         self.setStatusBar(sb)
         self._status = sb
+        self._previous_tab_idx = self._tabs.currentIndex()
 
     def _on_session_loaded(self, session: NBSession) -> None:
         try:
@@ -591,18 +919,100 @@ class MTABrowserWindow(QMainWindow):
                                   f"Could not build playback model:\n{e}")
             return
         self._ml_tab.attach_model(model)
+
+        # Optionally attach LFP / spectrogram to the LFP-states tab.
+        # Both are best-effort: we look at session.lfp and an
+        # optional precomputed SpectrumResult on the session.
+        attached_lfp = False
+        try:
+            spec = getattr(session, "spec", None)
+            lfp_arr = lfp_sr = None
+            if getattr(session, "lfp", None) is not None and \
+                    session.lfp.data is not None:
+                lfp_arr = session.lfp.data
+                lfp_sr  = float(session.lfp.samplerate)
+            if spec is not None or lfp_arr is not None:
+                self._lfp_tab.attach_lfp_data(
+                    session,
+                    spectrogram    = spec,
+                    lfp            = lfp_arr,
+                    lfp_samplerate = lfp_sr,
+                )
+                attached_lfp = True
+        except Exception as e:                     # pragma: no cover
+            self._status.showMessage(
+                f"LFP-states tab not attached: {e}", 5000,
+            )
+
         self._tabs.setCurrentWidget(self._ml_tab)
-        self._status.showMessage(
+        msg = (
             f"Loaded {session.name} ({session.maze}/{session.trial}) "
             f"— {model.n_samples} samples @ {model.samplerate} Hz"
         )
+        if attached_lfp and self._lfp_tab.model is not None:
+            msg += (f"; LFP-states @ "
+                    f"{self._lfp_tab.model.samplerate:.2f} Hz")
+        self._status.showMessage(msg)
         self.session_loaded.emit(session)
+
+    def _on_tab_changed(self, new_idx: int) -> None:
+        """When switching tabs, push the just-edited tab's state edits
+        to session.stc, then refresh the newly-shown tab from it.
+
+        This lets the user paint states in either tab and have the
+        other tab pick them up on next view, without needing an
+        explicit "save" step.
+        """
+        old_idx = getattr(self, "_previous_tab_idx", new_idx)
+        if old_idx == new_idx:
+            return
+
+        # Commit edits from the tab we're leaving
+        if old_idx == 1 and self._ml_tab.model is not None:
+            self._ml_tab.model.update_session_stc(mode="manual")
+        elif old_idx == 2 and self._lfp_tab.model is not None:
+            self._lfp_tab.commit_to_session()
+
+        # Refresh the tab we're entering
+        if new_idx == 1 and self._ml_tab.model is not None:
+            self._ml_tab.model._populate_states_from_session()
+            self._ml_tab.model._emit("states")
+            self._ml_tab.model._emit("states_data")
+        elif new_idx == 2 and self._lfp_tab.model is not None:
+            self._lfp_tab.refresh_from_session()
+
+        self._previous_tab_idx = new_idx
 
     # ── Test / programmatic API ────────────────────────────────────── #
 
     def set_session(self, session: NBSession) -> None:
         """Attach an already-loaded NBSession (skip the picker)."""
         self._on_session_loaded(session)
+
+    def attach_lfp(
+        self,
+        *,
+        spectrogram    = None,
+        lfp            = None,
+        lfp_samplerate = None,
+        spec_kwargs    = None,
+    ) -> None:
+        """Attach LFP / spectrogram data to the LFP-states tab.
+
+        Useful when the session itself didn't carry a precomputed
+        spectrogram or LFP, but the caller has it in memory.
+        """
+        if self._ml_tab.model is None:
+            raise RuntimeError(
+                "Load a session first (set_session) before attaching LFP."
+            )
+        self._lfp_tab.attach_lfp_data(
+            self._ml_tab.model.session,
+            spectrogram    = spectrogram,
+            lfp            = lfp,
+            lfp_samplerate = lfp_samplerate,
+            spec_kwargs    = spec_kwargs,
+        )
 
     @classmethod
     def launch(

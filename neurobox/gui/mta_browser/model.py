@@ -88,17 +88,56 @@ class PlaybackModel:
 
     @classmethod
     def from_session(cls, session: NBSession) -> "PlaybackModel":
-        """Build a model from a freshly-loaded session."""
+        """Build a model anchored to ``session.xyz`` (the motion-
+        labelling default).
+
+        For panels that should play at a different native rate
+        (e.g. an LFP-states tab driven by a spectrogram), use
+        :meth:`from_data` instead.
+        """
         if session.xyz is None:
             raise RuntimeError(
                 "Session must have xyz loaded before building "
                 "PlaybackModel."
             )
         n = int(session.xyz.data.shape[0])
+        return cls.from_data(session, n, float(session.xyz.samplerate))
+
+    @classmethod
+    def from_data(
+        cls,
+        session:    NBSession,
+        n_samples:  int,
+        samplerate: float,
+    ) -> "PlaybackModel":
+        """Build a model anchored to a specific (n_samples, samplerate)
+        pair.
+
+        The state masks live on this time axis.  Use this when the
+        driving NB object is something other than xyz — for example,
+        a spectrogram with frame rate determined by its window
+        spacing, or an LFP trace at the LFP samplerate.
+
+        Parameters
+        ----------
+        session:
+            Source session (used for ``session.stc`` lookup and as
+            the persistence target for save/load).
+        n_samples:
+            Length of this model's time axis, in samples.
+        samplerate:
+            Hz of this model's time axis.  Determines how
+            :meth:`step` advances and how time/sample conversions are
+            done.
+
+        Returns
+        -------
+        PlaybackModel
+        """
         m = cls(
             session    = session,
-            n_samples  = n,
-            samplerate = float(session.xyz.samplerate),
+            n_samples  = int(n_samples),
+            samplerate = float(samplerate),
         )
         m._populate_states_from_session()
         return m
