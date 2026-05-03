@@ -76,6 +76,8 @@ from .load_processed_mat       import (load_processed_mat,
 from .load_position_motive_csv import load_position_motive_csv
 from .xyz_fill_gaps            import fill_gaps, fill_xyz_gaps, detect_gaps
 from .load_units               import load_units, UnitAnnotation, map_annotations_to_global_ids
+from .data_hash                 import data_hash
+from .cached_compute            import cached_compute, cache_path_for
 
 __all__ = [
     # Parameter files
@@ -113,4 +115,8 @@ __all__ = [
     "load_units",
     "UnitAnnotation",
     "map_annotations_to_global_ids",
+    # Hashing for cache keys
+    "data_hash",
+    "cached_compute",
+    "cache_path_for",
 ]

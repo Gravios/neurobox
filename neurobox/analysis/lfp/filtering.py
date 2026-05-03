@@ -342,3 +342,120 @@ def fir_filter(
     arr2d, original_shape = _as_2d_time_first(x)
     y2d = filtfilt(coeffs, 1.0, arr2d, axis=0)
     return _restore_shape(y2d, original_shape), coeffs
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# Rectangular (moving-average) filter and Gaussian-window helper              #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+def rect_filter(
+    x:                  np.ndarray,
+    order:              int = 3,
+    num_applications:   int = 3,
+    data_type:          str = "linear",
+) -> np.ndarray:
+    """Multi-pass moving-average filter with reflective padding.
+
+    Port of :file:`MTA/utilities/filters/RectFilter.m`.
+
+    Repeatedly convolves with a rectangular box of width *order*,
+    centred on each sample.  The MATLAB original padded the signal by
+    ``order`` samples at each end (using a reflection for ``linear``
+    or wrap-around for ``circular``) and applied the box
+    *num_applications* times in succession.
+
+    Parameters
+    ----------
+    x:
+        ``(T,)`` or ``(T, ...)`` input.  Time axis is axis 0; higher
+        dims are filtered independently.
+    order:
+        Box width in samples.  Default 3 matches MATLAB.
+    num_applications:
+        Number of consecutive applications of the box.  Default 3.
+    data_type:
+        ``'linear'`` (reflective end-padding) or ``'circular'``
+        (wrap-around).  Default ``'linear'``.
+
+    Returns
+    -------
+    np.ndarray
+        Filtered output, same shape as *x*.
+    """
+    if data_type not in ("linear", "circular"):
+        raise ValueError(
+            f"data_type must be 'linear' or 'circular'; got {data_type!r}"
+        )
+    if order < 1:
+        raise ValueError(f"order must be ≥ 1; got {order}")
+    if num_applications < 1:
+        raise ValueError(f"num_applications must be ≥ 1; got {num_applications}")
+
+    arr2d, original_shape = _as_2d_time_first(x)
+    work = arr2d.astype(np.float64)
+
+    kernel = np.ones(order, dtype=np.float64) / order
+    for _ in range(num_applications):
+        # Re-pad before each pass so the edges of the moving average
+        # always see valid neighbours.  MATLAB's GetSegs+omitnan
+        # achieves the same thing implicitly.
+        if data_type == "linear":
+            pad_top = work[:order][::-1, :]
+            pad_bot = work[-order:][::-1, :]
+        else:
+            pad_top = work[-order:][::-1, :]
+            pad_bot = work[:order][::-1, :]
+        padded = np.concatenate([pad_top, work, pad_bot], axis=0)
+        smoothed = np.empty_like(padded)
+        for c in range(padded.shape[1]):
+            smoothed[:, c] = np.convolve(padded[:, c], kernel, mode="same")
+        work = smoothed[order:-order]
+
+    return _restore_shape(work, original_shape)
+
+
+def gauss_window(
+    twin_seconds:    float,
+    samplerate:      float,
+) -> np.ndarray:
+    """Unit-area odd-length Gaussian window of duration *twin_seconds*.
+
+    Port of :file:`MTA/utilities/filters/gtwin.m`.
+
+    The MATLAB original computed
+    ``round(twin*sampleRate) + (mod(round(...),2)==0)`` to force an
+    odd window length, then ``gausswin(N) ./ sum(gausswin(N))`` to
+    unit-normalise.  This port follows the same recipe using
+    :func:`scipy.signal.windows.gaussian`.
+
+    Parameters
+    ----------
+    twin_seconds:
+        Window length in seconds.
+    samplerate:
+        Sample rate in Hz.
+
+    Returns
+    -------
+    np.ndarray, shape ``(N,)``
+        Normalised Gaussian window with N odd and ``N ≈ twin*samplerate``.
+        ``window.sum() == 1.0`` exactly.
+
+    Notes
+    -----
+    MATLAB's ``gausswin(N)`` defaults to α=2.5; :func:`scipy.signal.windows.gaussian`
+    is parameterised by ``std`` instead.  The MATLAB α=2.5 corresponds
+    to ``std = (N - 1) / (2 * 2.5)`` — this port uses that conversion.
+    """
+    from scipy.signal.windows import gaussian
+    N = int(round(twin_seconds * samplerate))
+    if N % 2 == 0:
+        N += 1
+    if N < 1:
+        N = 1
+    alpha = 2.5
+    std = (N - 1) / (2 * alpha) if N > 1 else 1.0
+    w = gaussian(N, std=std)
+    s = w.sum()
+    if s == 0:
+        return w
+    return w / s

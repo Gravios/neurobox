@@ -73,6 +73,33 @@ class NBSpk:
         self.type: str              = "TimePoints"
         self.annotations: list      = []  # list[UnitAnnotation] from YAML units block
 
+        # Identity hash — mirrors NBData.update_hash.
+        self.hash: str = ""
+        self.update_hash()
+
+    # ------------------------------------------------------------------ #
+    # Hash mechanism (MATLAB MTASpk/update_hash.m)                         #
+    # ------------------------------------------------------------------ #
+
+    def update_hash(self, modification_hash: str | None = None) -> None:
+        """Recompute ``self.hash`` from spike content + transform tag.
+
+        Port of :file:`MTA/@MTASpk/update_hash.m`.
+
+        Spike-train identity is captured by the bytes of *res*, *clu*
+        and the cluster ID map *map*.  The samplerate is included so
+        resampled / reindexed copies hash differently.
+        """
+        from neurobox.io.data_hash import data_hash
+        self.hash = data_hash([
+            self.res.tobytes() if self.res.size > 0 else None,
+            self.clu.tobytes() if self.clu.size > 0 else None,
+            self.map.tobytes() if self.map.size > 0 else None,
+            self.samplerate,
+            self.type,
+            modification_hash,
+        ])
+
     # ------------------------------------------------------------------ #
     # Representation                                                       #
     # ------------------------------------------------------------------ #

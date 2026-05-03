@@ -48,6 +48,9 @@ dependencies = [
 gui = [
     "PySide6>=6.8",
 ]
+viz = [
+    "matplotlib>=3.7",    # neurobox.viz layout / plots / state helpers
+]
 
 dev = [
     "pytest>=8",
@@ -58,6 +61,10 @@ full = [
 ]
 hmm = [
     "hmmlearn>=0.3",      # neurobox.analysis.stats.gauss_hmm
+]
+classify = [
+    "torch>=2.0",         # neurobox.analysis.classifiers torch backends
+    "scikit-learn>=1.4",  # neurobox.analysis.classifiers sklearn backends
 ]
 
 [project.urls]

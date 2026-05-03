@@ -538,3 +538,369 @@ def rayleigh_test(
     _, kappa = von_mises_fit(theta)
 
     return RayleighResult(p=p, th0=th0, r=r, log_z=log_z, kappa=kappa, n=n)
+
+
+# ─────────────────────────────────────────────────────────────────────────── #
+# CircStat2012a ports — Berens's MATLAB Circular Statistics Toolbox          #
+#                                                                             #
+# These are the essential descriptive-statistics functions used throughout    #
+# the MTA pipeline and beyond.  They mirror the Berens API (matlab            #
+# Circular Statistics Toolbox version 2012a) so that MTA call sites port      #
+# cleanly.  Hypothesis-testing functions (Rayleigh, V-test, Watson-Williams)  #
+# are NOT included here — those that the lab uses are already covered by      #
+# :func:`rayleigh_test` and :func:`ppc` above; the rest can be added on       #
+# demand.                                                                     #
+# ─────────────────────────────────────────────────────────────────────────── #
+
+
+def circ_dist(alpha: np.ndarray, beta: np.ndarray) -> np.ndarray:
+    """Pairwise circular difference ``alpha - beta`` wrapped to ``(-π, π]``.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_dist.m` (Berens, P., 2009).
+
+    Parameters
+    ----------
+    alpha, beta:
+        Angles in radians.  Either same shape, or *beta* may be a single
+        angle broadcast against *alpha*.
+
+    Returns
+    -------
+    np.ndarray
+        Element-wise signed angular distance.
+    """
+    alpha = np.asarray(alpha, dtype=np.float64)
+    beta  = np.asarray(beta,  dtype=np.float64)
+    return np.angle(np.exp(1j * alpha) / np.exp(1j * beta))
+
+
+def circ_dist2(alpha: np.ndarray, beta: np.ndarray | None = None) -> np.ndarray:
+    """All-pairs circular difference ``alpha_i - beta_j``.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_dist2.m`.
+
+    Parameters
+    ----------
+    alpha:
+        ``(n,)`` angles in radians.
+    beta:
+        ``(m,)`` angles in radians.  ``None`` → use *alpha*.
+
+    Returns
+    -------
+    np.ndarray, shape ``(n, m)``
+        ``out[i, j] = circ_dist(alpha[i], beta[j])``.
+    """
+    a = np.asarray(alpha, dtype=np.float64).ravel()
+    b = a if beta is None else np.asarray(beta, dtype=np.float64).ravel()
+    return np.angle(np.exp(1j * a)[:, None] / np.exp(1j * b)[None, :])
+
+
+def circ_var(theta: np.ndarray, axis: Optional[int] = None) -> np.ndarray | float:
+    """Circular variance ``1 − r``.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_var.m` (the unweighted,
+    unbinned form — pass weighted data through :func:`circ_r` directly if
+    you need the binned-correction version).
+
+    Parameters
+    ----------
+    theta:
+        Angles in radians.
+    axis:
+        Axis along which to compute.  ``None`` flattens first.
+
+    Returns
+    -------
+    float or ndarray
+        ``S = 1 − r`` in ``[0, 1]``.  ``S = 0`` ⇒ perfect concentration;
+        ``S = 1`` ⇒ uniform.
+    """
+    return 1.0 - circ_r(theta, axis=axis)
+
+
+def circ_std(theta: np.ndarray, axis: Optional[int] = None,
+             ) -> tuple[np.ndarray | float, np.ndarray | float]:
+    """Circular standard deviation.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_std.m`.
+
+    Parameters
+    ----------
+    theta:
+        Angles in radians.
+    axis:
+        Axis along which to compute.  ``None`` flattens first.
+
+    Returns
+    -------
+    s : float or ndarray
+        Angular deviation ``√(2(1 − r))`` (Zar 26.20).
+    s0 : float or ndarray
+        Circular standard deviation ``√(−2 log r)`` (Zar 26.21).
+    """
+    r = circ_r(theta, axis=axis)
+    s  = np.sqrt(2.0 * (1.0 - r))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        s0 = np.sqrt(-2.0 * np.log(r))
+    return s, s0
+
+
+def circ_median(theta: np.ndarray, axis: int = 0) -> np.ndarray:
+    """Circular median direction.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_median.m`.
+
+    For each column (along *axis*), finds the direction *m* that
+    minimises ``|N_+(m) − N_-(m)|`` where ``N_±(m)`` are the counts of
+    angles falling on each side of the diameter through *m*.  Slow for
+    large samples (O(n²) memory via the all-pairs distance matrix).
+
+    Parameters
+    ----------
+    theta:
+        Angles in radians.  Must be 1-D or 2-D.
+    axis:
+        Reduction axis.  Default 0.
+
+    Returns
+    -------
+    np.ndarray
+        Median angle(s) in ``[0, 2π)``.
+    """
+    theta = np.asarray(theta, dtype=np.float64)
+    if theta.ndim == 1:
+        return _circ_median_1d(theta)
+    if theta.ndim != 2:
+        raise ValueError(
+            f"circ_median supports 1-D or 2-D input; got {theta.ndim}-D"
+        )
+    if axis == 0:
+        return np.array([_circ_median_1d(theta[:, j])
+                         for j in range(theta.shape[1])])
+    if axis == 1:
+        return np.array([_circ_median_1d(theta[i, :])
+                         for i in range(theta.shape[0])])
+    raise ValueError("circ_median axis must be 0 or 1")
+
+
+def _circ_median_1d(beta: np.ndarray) -> float:
+    beta = np.mod(beta, 2 * np.pi)
+    n = beta.size
+    if n == 0:
+        return float("nan")
+    dd = circ_dist2(beta, beta)            # (n, n)
+    m1 = np.sum(dd >= 0, axis=0)
+    m2 = np.sum(dd <= 0, axis=0)
+    dm = np.abs(m1 - m2)
+    if n % 2 == 1:
+        m   = dm.min()
+        idx = [int(np.argmin(dm))]
+    else:
+        m   = dm.min()
+        idx = list(np.where(dm == m)[0][:2])
+
+    md = circ_mean(beta[idx])
+    cmean = circ_mean(beta)
+    if abs(circ_dist(cmean, md)) > abs(circ_dist(cmean, md + np.pi)):
+        md = float(np.mod(md + np.pi, 2 * np.pi))
+    return float(md)
+
+
+def circ_kappa(theta: np.ndarray) -> float:
+    """Approximate ML estimate of the von Mises concentration κ.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_kappa.m`.
+
+    Uses Fisher's three-piece approximation in *r* (mean resultant
+    length) plus the small-sample correction for ``n < 15``.
+
+    Parameters
+    ----------
+    theta:
+        Either a sample of angles in radians or a precomputed mean
+        resultant length *r* (the MATLAB convention: when length 1, the
+        input is treated as *r*).
+
+    Returns
+    -------
+    kappa : float
+    """
+    theta = np.asarray(theta, dtype=np.float64).ravel()
+    n = theta.size
+    if n > 1:
+        R = float(circ_r(theta))
+    else:
+        R = float(theta[0])
+
+    if R < 0.53:
+        kappa = 2.0 * R + R**3 + 5.0 * R**5 / 6.0
+    elif R < 0.85:
+        kappa = -0.4 + 1.39 * R + 0.43 / (1.0 - R)
+    else:
+        kappa = 1.0 / (R**3 - 4.0 * R**2 + 3.0 * R)
+
+    if 1 < n < 15:
+        if kappa < 2:
+            kappa = max(kappa - 2.0 / (n * kappa), 0.0)
+        else:
+            kappa = (n - 1)**3 * kappa / (n**3 + n)
+    return float(kappa)
+
+
+def circ_moment(
+    theta:  np.ndarray,
+    p:      int = 1,
+    centered: bool = False,
+    axis:   Optional[int] = None,
+) -> tuple[np.ndarray | complex,
+           np.ndarray | float,
+           np.ndarray | float]:
+    """Complex p-th circular moment.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_moment.m` (unweighted form).
+
+    Parameters
+    ----------
+    theta:
+        Angles in radians.
+    p:
+        Moment order.  Default 1.
+    centered:
+        If True, compute the *central* moment (about the circular
+        mean).  Default False.
+    axis:
+        Reduction axis.  ``None`` flattens first.
+
+    Returns
+    -------
+    mp : complex or ndarray
+        Complex p-th moment.
+    rho_p : float or ndarray
+        Magnitude.
+    mu_p : float or ndarray
+        Angle.
+    """
+    theta = np.asarray(theta, dtype=np.float64)
+    if centered:
+        mean_dir = circ_mean(theta, axis=axis)
+        theta = circ_dist(theta, mean_dir if axis is None
+                                  else np.expand_dims(mean_dir, axis=axis))
+    n = theta.shape[axis] if axis is not None else theta.size
+    cbar = np.sum(np.cos(p * theta), axis=axis) / n
+    sbar = np.sum(np.sin(p * theta), axis=axis) / n
+    mp = cbar + 1j * sbar
+    return mp, np.abs(mp), np.angle(mp)
+
+
+def circ_skewness(
+    theta: np.ndarray,
+    axis:  Optional[int] = None,
+) -> tuple[np.ndarray | float, np.ndarray | float]:
+    """Pewsey + Fisher angular skewness.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_skewness.m`.
+
+    Parameters
+    ----------
+    theta:
+        Angles in radians.
+    axis:
+        Reduction axis.  ``None`` flattens first.
+
+    Returns
+    -------
+    b : float or ndarray
+        Skewness (Pewsey 2004): ``mean(sin(2(θ − θ̄)))``.
+    b0 : float or ndarray
+        Alternative skewness (Fisher 1995 §2.3.5):
+        ``ρ₂ sin(μ₂ − 2θ̄) / (1 − r)^{3/2}``.
+    """
+    R     = circ_r(theta, axis=axis)
+    theta_bar = circ_mean(theta, axis=axis)
+    _, rho2, mu2 = circ_moment(theta, p=2, centered=False, axis=axis)
+    theta_arr = np.asarray(theta, dtype=np.float64)
+    if axis is not None:
+        theta_bar_b = np.expand_dims(theta_bar, axis=axis)
+    else:
+        theta_bar_b = theta_bar
+    n = theta_arr.shape[axis] if axis is not None else theta_arr.size
+    b  = np.sum(np.sin(2.0 * circ_dist(theta_arr, theta_bar_b)),
+                axis=axis) / n
+    b0 = rho2 * np.sin(circ_dist(mu2, 2.0 * theta_bar)) / (1.0 - R) ** 1.5
+    return b, b0
+
+
+def circ_kurtosis(
+    theta: np.ndarray,
+    axis:  Optional[int] = None,
+) -> tuple[np.ndarray | float, np.ndarray | float]:
+    """Pewsey + Fisher angular kurtosis.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_kurtosis.m`.
+
+    Returns
+    -------
+    k : float or ndarray
+        Kurtosis (Pewsey 2004): ``mean(cos(2(θ − θ̄)))``.
+    k0 : float or ndarray
+        Alternative kurtosis (Fisher 1995 §2.3.5):
+        ``(ρ₂ cos(μ₂ − 2θ̄) − r⁴) / (1 − r)²``.
+    """
+    R     = circ_r(theta, axis=axis)
+    theta_bar = circ_mean(theta, axis=axis)
+    _, rho2, mu2 = circ_moment(theta, p=2, centered=False, axis=axis)
+    theta_arr = np.asarray(theta, dtype=np.float64)
+    if axis is not None:
+        theta_bar_b = np.expand_dims(theta_bar, axis=axis)
+    else:
+        theta_bar_b = theta_bar
+    n = theta_arr.shape[axis] if axis is not None else theta_arr.size
+    k  = np.sum(np.cos(2.0 * circ_dist(theta_arr, theta_bar_b)),
+                axis=axis) / n
+    k0 = (rho2 * np.cos(circ_dist(mu2, 2.0 * theta_bar)) - R**4) \
+         / (1.0 - R) ** 2
+    return k, k0
+
+
+def circ_axial(alpha: np.ndarray, p: int = 1) -> np.ndarray:
+    """Transform p-axial data to a common ``[0, 2π)`` scale.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_axial.m`.
+
+    Multiplies *alpha* by *p* and reduces modulo ``2π``.  Useful for
+    converting axial data (e.g. orientation angles in ``[0, π)``,
+    where 0 and π represent the same axis) onto the full circle so
+    that linear circular statistics apply.
+
+    Parameters
+    ----------
+    alpha:
+        Angles in radians.
+    p:
+        Number of modes (axes).  ``p = 2`` for axial data.  Default 1.
+
+    Returns
+    -------
+    np.ndarray
+        Transformed angles in ``[0, 2π)``.
+    """
+    return np.mod(np.asarray(alpha, dtype=np.float64) * p, 2.0 * np.pi)
+
+
+def circ_ang2rad(alpha_deg: np.ndarray) -> np.ndarray:
+    """Convert degrees → radians.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_ang2rad.m`.  Trivial
+    wrapper over :func:`numpy.deg2rad` provided for API parity.
+    """
+    return np.deg2rad(np.asarray(alpha_deg, dtype=np.float64))
+
+
+def circ_rad2ang(alpha_rad: np.ndarray) -> np.ndarray:
+    """Convert radians → degrees.
+
+    Port of :file:`labbox/Stats/CircStat2012a/circ_rad2ang.m`.  Trivial
+    wrapper over :func:`numpy.rad2deg` provided for API parity.
+    """
+    return np.rad2deg(np.asarray(alpha_rad, dtype=np.float64))
