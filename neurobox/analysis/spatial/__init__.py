@@ -15,6 +15,11 @@ from .place_field_stats import (
     Patch,
     UnitStats,
 )
+from .knn_place_fields import (
+    knn_place_field,
+    compute_pfstats_bs,
+    PfsBsResult,
+)
 
 __all__ = [
     "occupancy_map",
@@ -24,4 +29,7 @@ __all__ = [
     "place_field_stats",
     "Patch",
     "UnitStats",
+    "knn_place_field",
+    "compute_pfstats_bs",
+    "PfsBsResult",
 ]
