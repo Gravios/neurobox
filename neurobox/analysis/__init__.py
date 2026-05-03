@@ -40,6 +40,26 @@ from .spatial           import (
     occupancy_map, OccupancyResult,
     place_field, PlaceFieldResult,
     place_field_stats, Patch, UnitStats,
+    # Round 18
+    knn_place_field, compute_pfstats_bs, PfsBsResult,
+)
+from .feature_dynamics  import (
+    time_lagged_mutual_information,
+    time_lagged_cross_correlation,
+    TimeLaggedResult,
+)
+from .feature_selection import (
+    pairwise_mutual_information_ranking,
+    MIFeatureRanking,
+    # Round 19
+    select_features_hmi,
+    HierarchicalMIResult,
+    mta_tsne,
+    TSNEResult,
+    run_feature_selection_pipeline,
+    augment_features_quadratic,
+    FeatureSelectionPipelineResult,
+    PerStateAccumulation,
 )
 from .placefields       import (
     compute_drz, compute_ddz,
@@ -50,7 +70,22 @@ from .placefields       import (
     compute_ego_ratemap,
     compute_ego_ratemap_conditioned,
 )
-from .kinematics        import augment_xyz
+from .kinematics        import (
+    augment_xyz,
+    # Round 17
+    SplineSpineResult,
+    spline_spine,
+    preproc_xyz_spline_spine_head_eqi,
+    preproc_xyz_spline_spine_head_eqd,
+    BodyReferencedFeatures,
+    body_referenced_features,
+    body_referenced_xy_features,
+    # Round 19
+    FetAllResult,
+    fet_all_features,
+    lower_spine_yaw_ppc,
+)
+from . import heuristics
 from .decoding          import (
     decode_ufr_boxcar, DecodingResult,
     prepare_ratemap, prepare_bin_coords,
@@ -163,6 +198,28 @@ __all__ = [
     "occupancy_map", "OccupancyResult",
     "place_field", "PlaceFieldResult",
     "place_field_stats", "Patch", "UnitStats",
+    # round 18 spatial — KNN ratemaps + multi-state pfstats aggregation
+    "knn_place_field", "compute_pfstats_bs", "PfsBsResult",
+    # round 18 feature dynamics — MI / cross-corr at variable lags
+    "time_lagged_mutual_information",
+    "time_lagged_cross_correlation",
+    "TimeLaggedResult",
+    # round 18 feature selection — MI ranking vs binary state labels
+    "pairwise_mutual_information_ranking",
+    "MIFeatureRanking",
+    # round 19 feature selection — HMI + pipeline + t-SNE wrapper
+    "select_features_hmi",
+    "HierarchicalMIResult",
+    "mta_tsne",
+    "TSNEResult",
+    "run_feature_selection_pipeline",
+    "augment_features_quadratic",
+    "FeatureSelectionPipelineResult",
+    "PerStateAccumulation",
+    # round 19 kinematics — fet_all + lower_spine_yaw_ppc
+    "FetAllResult",
+    "fet_all_features",
+    "lower_spine_yaw_ppc",
     # directional zone scores (placefields module)
     "compute_drz", "compute_ddz",
     "compute_ghz", "compute_gdz",
@@ -172,6 +229,15 @@ __all__ = [
     "compute_ego_ratemap",
     "compute_ego_ratemap_conditioned",
     "augment_xyz",
+    # round 17 kinematics + heuristics
+    "SplineSpineResult",
+    "spline_spine",
+    "preproc_xyz_spline_spine_head_eqi",
+    "preproc_xyz_spline_spine_head_eqd",
+    "BodyReferencedFeatures",
+    "body_referenced_features",
+    "body_referenced_xy_features",
+    "heuristics",
     # decoding
     "decode_ufr_boxcar", "DecodingResult",
     "prepare_ratemap", "prepare_bin_coords",

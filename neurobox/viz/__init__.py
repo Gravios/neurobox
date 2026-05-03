@@ -66,6 +66,17 @@ from .state import (
     plot_state_durations,
     plot_features_with_stc,
 )
+from .domain_plots import (
+    plot_xy_with_state,
+    plot_z,
+    plot_z_basic,
+    plot_xy_velocity,
+    plot_rhm_spectrogram,
+    plot_skeleton,
+    plot_skeleton_line,
+    plot_colored_curve,
+    plot_colored_curve_3d,
+)
 
 
 __all__ = [
@@ -95,4 +106,14 @@ __all__ = [
     "plot_stcs",
     "plot_state_durations",
     "plot_features_with_stc",
+    # domain plots (round 18)
+    "plot_xy_with_state",
+    "plot_z",
+    "plot_z_basic",
+    "plot_xy_velocity",
+    "plot_rhm_spectrogram",
+    "plot_skeleton",
+    "plot_skeleton_line",
+    "plot_colored_curve",
+    "plot_colored_curve_3d",
 ]
