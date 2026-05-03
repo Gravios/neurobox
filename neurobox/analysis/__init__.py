@@ -21,6 +21,15 @@ from .stats             import (
     rayleigh_test, ppc,
     von_mises_fit, von_mises_pdf, von_mises_rvs,
     bessel_ratio_inverse,
+    # CircStat2012a additions
+    circ_dist, circ_dist2,
+    circ_var, circ_std,
+    circ_median,
+    circ_kappa,
+    circ_moment,
+    circ_skewness, circ_kurtosis,
+    circ_axial,
+    circ_ang2rad, circ_rad2ang,
     FDRResult, fdr_bh,
     BinSmoothResult, bin_smooth,
 )
@@ -32,6 +41,15 @@ from .spatial           import (
     place_field, PlaceFieldResult,
     place_field_stats, Patch, UnitStats,
 )
+from .placefields       import (
+    compute_drz, compute_ddz,
+    compute_ghz, compute_gdz,
+    compute_hdz, compute_hrz, compute_hpv, compute_tpv,
+    field_centres_from_result,
+    egocentric_position,
+    compute_ego_ratemap,
+    compute_ego_ratemap_conditioned,
+)
 from .kinematics        import augment_xyz
 from .decoding          import (
     decode_ufr_boxcar, DecodingResult,
@@ -41,17 +59,76 @@ from .decoding          import (
     CircularBoundary, SquareBoundary, LineBoundary,
     theta_phase, stc2mat,
 )
+from .mocap             import (
+    rotate_points_around_vectors,
+    rotate_point_around_vector,
+    rotate_marker_around_vector,
+    rigid_body_basis,
+    intermarker_distances,
+    marker_triads, MarkerTriadResult,
+    marker_diff_matrix,
+    inter_marker_distance,
+    inter_marker_angles,
+    inter_marker_orientation,
+    fill_gaps,
+    infer_virtual_joint,
+    find_error_periods,
+    correct_point_errors,
+    parse_rbo_from_csv, MotiveTakeResult,
+)
+from .transformations   import (
+    BinAxis,
+    BinStats2D, BinStats2DCirc, BinStats3D, BinStatsArbitrary,
+    bin_statistic_2d,
+    bin_statistic_2d_circ,
+    bin_statistic_3d,
+    bin_statistic,
+    rot_z_axis, rot_y_axis, detect_roll,
+    thetarc_phase,
+    decompose_xy_motion_wrt_body,
+    BodyMotionSVDModel,
+    quat2rotm, quaternion2rad,
+    make_uniform_distr, shilbert, my_theta_phase,
+)
 from .transform_origin  import transform_origin, TransformResult
 
 
 # ─────────────────────────────────────────────────────────────────────────── #
-# Lazy HMM import — see neurobox.analysis.stats.__init__ for rationale.       #
+# Lazy HMM + classifiers import.                                              #
+# torch / scikit-learn are only pulled in if a backend is actually requested. #
 # ─────────────────────────────────────────────────────────────────────────── #
+
+_LAZY_CLASSIFIER_NAMES = {
+    "Classifier", "FitInfo",
+    "whole_state_bootstrap", "BootstrapResult",
+    "make_classifier",
+    "train_classifier_ensemble", "predict_with_ensemble",
+    "smooth_labels_to_state_collection",
+    "label_states",
+    "TrainedEnsemble", "FeatureNormalisation", "fit_normalisation",
+    # stc-editing utilities
+    "mat_to_stc",
+    "confusion_matrix",
+    "compare_stcs", "LabelComparisonStats",
+    "swap_state_vector_ids",
+    "reassign_short_periods",
+    "reassign_state_by_duration",
+    "reduce_stc_to_loc",
+    "mutual_information_states_features",
+    # session alignment
+    "BehaviouralManifoldStats",
+    "behavioural_manifold_stats",
+    "map_to_reference_session",
+}
+
 
 def __getattr__(name: str):
     if name in ("gauss_hmm", "HMMResult"):
         from .stats import hmm as _hmm
         return getattr(_hmm, name)
+    if name in _LAZY_CLASSIFIER_NAMES:
+        from . import classifiers as _classifiers
+        return getattr(_classifiers, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -62,7 +139,7 @@ __all__ = [
     "multitaper_spectrogram", "multitaper_coherogram",
     "multitaper_cross_spectrogram", "multitaper_psd",
     "whiten_ar", "fet_spec",
-    "butter_filter", "filter0", "fir_filter",
+    "butter_filter", "filter0", "fir_filter", "rect_filter", "gauss_window",
     "OscillationResult", "detect_oscillations", "detect_ripples",
     "local_minima", "thresh_cross", "within_ranges",
     "CSDResult", "current_source_density",
@@ -72,12 +149,28 @@ __all__ = [
     "rayleigh_test", "ppc",
     "von_mises_fit", "von_mises_pdf", "von_mises_rvs",
     "bessel_ratio_inverse",
+    "circ_dist", "circ_dist2",
+    "circ_var", "circ_std",
+    "circ_median",
+    "circ_kappa",
+    "circ_moment",
+    "circ_skewness", "circ_kurtosis",
+    "circ_axial",
+    "circ_ang2rad", "circ_rad2ang",
     "FDRResult", "fdr_bh",
     "BinSmoothResult", "bin_smooth",
     "ccg", "trains_to_ccg", "CCGResult",
     "occupancy_map", "OccupancyResult",
     "place_field", "PlaceFieldResult",
     "place_field_stats", "Patch", "UnitStats",
+    # directional zone scores (placefields module)
+    "compute_drz", "compute_ddz",
+    "compute_ghz", "compute_gdz",
+    "compute_hdz", "compute_hrz", "compute_hpv", "compute_tpv",
+    "field_centres_from_result",
+    "egocentric_position",
+    "compute_ego_ratemap",
+    "compute_ego_ratemap_conditioned",
     "augment_xyz",
     # decoding
     "decode_ufr_boxcar", "DecodingResult",
@@ -86,6 +179,51 @@ __all__ = [
     "create_tensor_mask",
     "CircularBoundary", "SquareBoundary", "LineBoundary",
     "theta_phase", "stc2mat",
+    # mocap
+    "rotate_points_around_vectors",
+    "rotate_point_around_vector",
+    "rotate_marker_around_vector",
+    "rigid_body_basis",
+    "intermarker_distances",
+    "marker_triads", "MarkerTriadResult",
+    "marker_diff_matrix",
+    "inter_marker_distance",
+    "inter_marker_angles",
+    "inter_marker_orientation",
+    "fill_gaps",
+    "infer_virtual_joint",
+    "find_error_periods",
+    "correct_point_errors",
+    "parse_rbo_from_csv", "MotiveTakeResult",
+    # transformations
+    "BinAxis",
+    "BinStats2D", "BinStats2DCirc", "BinStats3D", "BinStatsArbitrary",
+    "bin_statistic_2d", "bin_statistic_2d_circ", "bin_statistic_3d",
+    "bin_statistic",
+    "rot_z_axis", "rot_y_axis", "detect_roll",
+    "thetarc_phase",
+    "decompose_xy_motion_wrt_body", "BodyMotionSVDModel",
+    "quat2rotm", "quaternion2rad",
+    "make_uniform_distr", "shilbert", "my_theta_phase",
     # hmm — requires `pip install 'neurobox[hmm]'`
     "gauss_hmm", "HMMResult",
+    # classifiers — requires `pip install 'neurobox[classify]'`
+    "Classifier", "FitInfo",
+    "whole_state_bootstrap", "BootstrapResult",
+    "make_classifier",
+    "train_classifier_ensemble", "predict_with_ensemble",
+    "smooth_labels_to_state_collection",
+    "label_states",
+    "TrainedEnsemble", "FeatureNormalisation", "fit_normalisation",
+    "mat_to_stc",
+    "confusion_matrix",
+    "compare_stcs", "LabelComparisonStats",
+    "swap_state_vector_ids",
+    "reassign_short_periods",
+    "reassign_state_by_duration",
+    "reduce_stc_to_loc",
+    "mutual_information_states_features",
+    "BehaviouralManifoldStats",
+    "behavioural_manifold_stats",
+    "map_to_reference_session",
 ]

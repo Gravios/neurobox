@@ -21,6 +21,15 @@ from .circular import (
     von_mises_pdf,
     von_mises_rvs,
     bessel_ratio_inverse,
+    # CircStat2012a additions
+    circ_dist, circ_dist2,
+    circ_var, circ_std,
+    circ_median,
+    circ_kappa,
+    circ_moment,
+    circ_skewness, circ_kurtosis,
+    circ_axial,
+    circ_ang2rad, circ_rad2ang,
 )
 from .multcomp import (
     FDRResult,
@@ -56,6 +65,15 @@ __all__ = [
     "von_mises_pdf",
     "von_mises_rvs",
     "bessel_ratio_inverse",
+    # CircStat2012a — Berens's MATLAB Circular Statistics Toolbox
+    "circ_dist", "circ_dist2",
+    "circ_var", "circ_std",
+    "circ_median",
+    "circ_kappa",
+    "circ_moment",
+    "circ_skewness", "circ_kurtosis",
+    "circ_axial",
+    "circ_ang2rad", "circ_rad2ang",
     # multcomp
     "FDRResult",
     "fdr_bh",

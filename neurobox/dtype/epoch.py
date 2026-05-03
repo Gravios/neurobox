@@ -144,6 +144,41 @@ class NBEpoch:
             if mode == "periods" and self.data.ndim == 1 and len(self.data) == 2:
                 self.data = self.data.reshape(1, 2)
 
+        # Identity hash — mirrors NBData.update_hash.
+        self.hash: str = ""
+        self.update_hash()
+
+    # ------------------------------------------------------------------ #
+    # Hash mechanism (MATLAB MTAData/update_hash.m)                        #
+    # ------------------------------------------------------------------ #
+
+    def update_hash(self, modification_hash: str | None = None) -> None:
+        """Recompute ``self.hash`` from identity fields + transform tag.
+
+        See :meth:`neurobox.dtype.NBData.update_hash` for the full
+        semantics.  For epochs the identity fields are *label*,
+        *key*, *samplerate*, *sync*, *mode*, plus the period or mask
+        contents.
+        """
+        from neurobox.io.data_hash import data_hash
+
+        sync_repr = (
+            self.sync.tobytes() if self.sync is not None else None
+        )
+        data_repr = (
+            self.data.tobytes() if self.data is not None and self.data.size > 0
+            else None
+        )
+        self.hash = data_hash([
+            self.label,
+            self.key,
+            self.samplerate,
+            sync_repr,
+            self.mode,
+            data_repr,
+            modification_hash,
+        ])
+
     # ------------------------------------------------------------------ #
     # Representation                                                       #
     # ------------------------------------------------------------------ #
@@ -273,6 +308,7 @@ class NBEpoch:
             else:
                 result.data = result.data + b
         result.clean()
+        result.update_hash()
         return result
 
     def __sub__(self, other: "NBEpoch | float | np.ndarray") -> "NBEpoch":
@@ -290,6 +326,7 @@ class NBEpoch:
             if result.mode == "periods":
                 result.data = result.data - b
         result.clean()
+        result.update_hash()
         return result
 
     # ------------------------------------------------------------------ #

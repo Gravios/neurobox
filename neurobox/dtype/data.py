@@ -11,7 +11,11 @@ Design differences from MTAData
 * ``samplerate`` (lowercase) throughout.
 * Period-based indexing via ``__getitem__``; named-feature indexing
   via ``sel(labels, dims)``.
-* No MATLAB hash machinery — add when needed.
+* Hash mechanism (``self.hash`` + ``update_hash()``) ported from
+  MATLAB's ``MTAData.update_hash`` — derives a content tag from
+  the object's identity fields plus an optional modification hash
+  produced by transforms (``filter``, ``resample`` etc.).  Used as
+  a cache-invalidation key by :func:`neurobox.io.cached_compute`.
 * Concrete subclasses must implement ``data`` as a regular numpy array
   property rather than an abstract MATLAB property.
 """
@@ -110,6 +114,75 @@ class NBData(ABC):
         self.name: str = name
         self.label: str = label
         self.key: str = key
+        # Identity hash — computed last so all fields are populated.
+        # Mirrors MATLAB MTAData/update_hash.m.
+        self.hash: str = ""
+        self.update_hash()
+
+    # ------------------------------------------------------------------ #
+    # Hash mechanism                                                       #
+    # ------------------------------------------------------------------ #
+
+    def update_hash(self, modification_hash: str | None = None) -> None:
+        """Recompute ``self.hash`` from identity fields + transform tag.
+
+        Port of :file:`MTA/@MTAData/update_hash.m`.
+
+        The hash combines:
+
+        * Identity: ``filename``, ``name``, ``label``, ``key``, ``ext``,
+          ``samplerate``, ``sync``, ``origin``.
+        * An optional *modification_hash* tag produced by the calling
+          transform (e.g. a ``data_hash({mode, order, freq})`` from
+          :meth:`filter`).
+
+        Why the array data is **not** hashed
+        -------------------------------------
+        Following the MATLAB original, the underlying ``data`` array
+        is intentionally excluded from the identity hash.  The MATLAB
+        convention assumes ``filename`` uniquely identifies what the
+        data is — so two ``MTADxyz`` objects with the same filename
+        always hash identically.  In neurobox the same convention
+        applies: when working with **in-memory objects without a
+        backing file** (e.g. synthetic test data), set ``name=`` to a
+        unique session identifier so distinct objects hash distinctly.
+
+        The result is a SHA-1 hex digest (40 chars).  When transforms
+        chain, each successive ``update_hash`` includes the previous
+        ``self.hash`` automatically because that's part of the object's
+        identity at that moment.
+
+        Parameters
+        ----------
+        modification_hash:
+            Hex digest produced by the caller from its transform
+            parameters.  ``None`` for fresh-construction hashing.
+        """
+        # Late import to avoid a top-level neurobox.io ↔ neurobox.dtype
+        # circular dependency.
+        from neurobox.io.data_hash import data_hash
+
+        # Sync object isn't directly hashable — summarise it.
+        sync_repr = None
+        if self.sync is not None:
+            sync_data = getattr(self.sync, "data", None)
+            sync_sr   = getattr(self.sync, "samplerate", None)
+            sync_repr = (
+                np.asarray(sync_data).tobytes() if sync_data is not None else None,
+                float(sync_sr) if sync_sr is not None else None,
+            )
+
+        self.hash = data_hash([
+            self.filename,
+            self.name,
+            self.label,
+            self.key,
+            self.ext,
+            self.samplerate,
+            sync_repr,
+            self.origin,
+            modification_hash,
+        ])
 
     # ------------------------------------------------------------------ #
     # Data property (subclasses may override for lazy loading)            #
@@ -252,6 +325,7 @@ class NBData(ABC):
         """
         from scipy.signal import butter, sosfiltfilt
         from scipy.ndimage import uniform_filter1d
+        from neurobox.io.data_hash import data_hash
 
         if self._data is None:
             return self
@@ -274,6 +348,8 @@ class NBData(ABC):
             orig_shape = d.shape
             d = sosfiltfilt(sos, d.reshape(d.shape[0], -1), axis=0)
             self._data = d.reshape(orig_shape)
+            mod_hash = data_hash({"mode": "butter", "order": order,
+                                  "cutoff": cutoff, "btype": btype})
 
         elif mode == "gauss":
             sigma_sec = kwargs.get("sigma_sec", 0.05)
@@ -284,6 +360,7 @@ class NBData(ABC):
                 self._data.astype(np.float64).reshape(orig_shape[0], -1),
                 sigma=sigma_samp, axis=0
             ).reshape(orig_shape)
+            mod_hash = data_hash({"mode": "gauss", "sigma_sec": sigma_sec})
 
         elif mode == "rect":
             window_sec = kwargs.get("window_sec", 0.1)
@@ -293,10 +370,14 @@ class NBData(ABC):
                 self._data.astype(np.float64).reshape(orig_shape[0], -1),
                 size=window_samp, axis=0
             ).reshape(orig_shape)
+            mod_hash = data_hash({"mode": "rect", "window_sec": window_sec})
 
         else:
             raise ValueError(f"Unknown filter mode: {mode!r}")
 
+        # Each transform bumps the hash.  Including self.hash means
+        # subsequent transforms naturally chain — same as MATLAB.
+        self.update_hash(data_hash({"prev": self.hash, "filter": mod_hash}))
         return self
 
     # ------------------------------------------------------------------ #
@@ -385,6 +466,15 @@ class NBData(ABC):
         d = _trim_or_pad(d, n_out)
         self._data      = d.reshape((n_out,) + orig_shape[1:])
         self.samplerate = new_samplerate
+
+        # Bump hash with resample parameters.
+        from neurobox.io.data_hash import data_hash
+        self.update_hash(data_hash({
+            "prev":             self.hash,
+            "resample_to":      new_samplerate,
+            "resample_method":  method,
+            "resample_target_n": target_n,
+        }))
         return self
 
     # ------------------------------------------------------------------ #

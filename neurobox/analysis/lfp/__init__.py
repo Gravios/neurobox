@@ -17,6 +17,8 @@ from .filtering import (
     butter_filter,
     filter0,
     fir_filter,
+    rect_filter,
+    gauss_window,
 )
 from .oscillations import (
     OscillationResult,
@@ -51,6 +53,8 @@ __all__ = [
     "butter_filter",
     "filter0",
     "fir_filter",
+    "rect_filter",
+    "gauss_window",
     # oscillations
     "OscillationResult",
     "detect_oscillations",
