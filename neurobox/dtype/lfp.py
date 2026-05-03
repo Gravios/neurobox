@@ -67,11 +67,13 @@ class NBDlfp(NBData):
         filename: str | None = None,
         name: str = "",
         ext: str = "lfp",
+        stream_sync: "StreamSync | None" = None,
     ) -> None:
         super().__init__(
             path=path, filename=filename, data=data,
             samplerate=samplerate, sync=sync, origin=origin,
             type_="TimeSeries", ext=ext, name=name, label="lfp", key="l",
+            stream_sync=stream_sync,
         )
         self.channels: list[int] = channels or []
         self.uv_per_bit: float | None = uv_per_bit
