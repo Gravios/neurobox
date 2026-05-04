@@ -39,10 +39,13 @@ from PySide6.QtWidgets import (
 from neurobox.dtype.session  import NBSession
 from neurobox.dtype.stc      import NBStateCollection
 
-from .data_layer import ProjectIndex, scan_project
+from .data_layer  import NamingConfig, ProjectIndex, scan_project
 from .lfp_widgets import LfpTraceView, SpectrogramView
-from .model      import PlaybackModel
-from .widgets    import FeaturePanel, SkeletonViewer3D, StateTrackView
+from .model       import PlaybackModel
+from .preferences import (
+    PreferencesDialog, load_preferences, save_preferences,
+)
+from .widgets     import FeaturePanel, SkeletonViewer3D, StateTrackView
 
 
 __all__ = [
@@ -66,6 +69,10 @@ class _DataManagementTab(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._index: Optional[ProjectIndex] = None
+        # Naming configs to use when scanning a project root.  Set
+        # via :meth:`set_namings`; defaults to the canonical
+        # neurobox + labbox-mta combo via ``scan_project``.
+        self._namings: Optional[list[NamingConfig]] = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -124,13 +131,23 @@ class _DataManagementTab(QWidget):
 
     def set_root(self, root: Path) -> None:
         """Programmatic API for tests: load *root* without a dialog."""
-        self._index = scan_project(root)
+        self._index = scan_project(root, namings=self._namings)
         self.root_label.setText(str(root))
         self.subject_list.clear()
         for s in self._index.subjects():
             self.subject_list.addItem(s)
         if self.subject_list.count() > 0:
             self.subject_list.setCurrentRow(0)
+
+    def set_namings(
+        self,
+        namings: Optional[list[NamingConfig]],
+    ) -> None:
+        """Update the active :class:`NamingConfig` list and re-scan
+        the current project root, if any."""
+        self._namings = namings
+        if self._index is not None:
+            self.set_root(self._index.project_root)
 
     def _on_subject(self, current, _previous) -> None:
         self.date_list.clear()
@@ -906,10 +923,47 @@ class MTABrowserWindow(QMainWindow):
 
         self._dm_tab.session_loaded.connect(self._on_session_loaded)
 
+        # Apply persisted preferences (naming configs etc.) at startup.
+        self._apply_preferences(load_preferences())
+
+        # Menu bar — File / Edit
+        self._build_menu()
+
         sb = QStatusBar()
         self.setStatusBar(sb)
         self._status = sb
         self._previous_tab_idx = self._tabs.currentIndex()
+
+    def _build_menu(self) -> None:
+        bar = self.menuBar()
+        file_menu = bar.addMenu("&File")
+        open_action = QAction("Open project root…", self)
+        open_action.triggered.connect(self._dm_tab._choose_root)
+        file_menu.addAction(open_action)
+
+        edit_menu = bar.addMenu("&Edit")
+        prefs_action = QAction("Preferences…", self)
+        prefs_action.setShortcut("Ctrl+,")
+        prefs_action.triggered.connect(self._show_preferences)
+        edit_menu.addAction(prefs_action)
+
+    def _show_preferences(self) -> None:
+        """Open the preferences dialog and apply the result."""
+        dlg = PreferencesDialog(parent=self, prefs=load_preferences())
+        if dlg.exec() == dlg.Accepted:
+            new_prefs = dlg.preferences()
+            save_preferences(new_prefs)
+            self._apply_preferences(new_prefs)
+            self._status.showMessage(
+                "Preferences updated — project re-scanned.", 4000,
+            )
+
+    def _apply_preferences(self, prefs) -> None:
+        """Push relevant prefs into the running widgets.
+
+        Currently this means: update the DM tab's NamingConfig list
+        (and re-scan the project root if one is loaded)."""
+        self._dm_tab.set_namings(prefs.enabled_namings)
 
     def _on_session_loaded(self, session: NBSession) -> None:
         try:
