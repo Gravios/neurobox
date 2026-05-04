@@ -2,7 +2,7 @@
   "lists": {
     "sobolev": [
       {
-        "sessionName": "as01-20191118",
+        "sessionName": "sirotaA-as-01-20191118",
         "mazeName": "vrr",
         "trialName": "all",
         "xyzSampleRate": 100.0,
@@ -29,7 +29,7 @@
         ]
       },
       {
-        "sessionName": "as01-20191106",
+        "sessionName": "sirotaA-as-01-20191106",
         "mazeName": "vrr",
         "trialName": "all",
         "xyzSampleRate": 100.0,
@@ -58,7 +58,7 @@
     ],
     "create_FS10": [
       {
-        "sessionName": "FS10-20220216a",
+        "sessionName": "sirotaA-FS-10-20220216a",
         "subject": {
           "name": "FS10",
           "correction": {
@@ -111,7 +111,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "FS10-20220217a",
+        "sessionName": "sirotaA-FS-10-20220217a",
         "subject": {
           "name": "FS10",
           "correction": {
@@ -166,7 +166,7 @@
     ],
     "setup_ec16": [
       {
-        "sessionName": "ec16-00577590",
+        "sessionName": "sirotaA-ec-16-00577590",
         "subject": {
           "name": "ec16",
           "correction": {
@@ -215,7 +215,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ec16-00228240",
+        "sessionName": "sirotaA-ec-16-00228240",
         "subject": {
           "name": "ec16",
           "correction": {
@@ -264,7 +264,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ec16-00267278",
+        "sessionName": "sirotaA-ec-16-00267278",
         "subject": {
           "name": "ec16",
           "correction": {
@@ -315,7 +315,7 @@
     ],
     "create_ec14": [
       {
-        "sessionName": "ec14-00207234",
+        "sessionName": "sirotaA-ec-14-00207234",
         "subject": {
           "name": "ec14",
           "correction": {
@@ -364,7 +364,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ec14-00271287",
+        "sessionName": "sirotaA-ec-14-00271287",
         "subject": {
           "name": "ec14",
           "correction": {
@@ -415,7 +415,7 @@
     ],
     "setup_Ed10": [
       {
-        "sessionName": "Ed10-20140806",
+        "sessionName": "sirotaA-Ed-10-20140806",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -438,7 +438,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140807",
+        "sessionName": "sirotaA-Ed-10-20140807",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -461,7 +461,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140808",
+        "sessionName": "sirotaA-Ed-10-20140808",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -484,7 +484,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140812",
+        "sessionName": "sirotaA-Ed-10-20140812",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -507,7 +507,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140813",
+        "sessionName": "sirotaA-Ed-10-20140813",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -530,7 +530,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140814",
+        "sessionName": "sirotaA-Ed-10-20140814",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -553,7 +553,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140815",
+        "sessionName": "sirotaA-Ed-10-20140815",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -576,7 +576,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -599,7 +599,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -622,7 +622,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140819",
+        "sessionName": "sirotaA-Ed-10-20140819",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -645,7 +645,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -668,7 +668,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -691,7 +691,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -714,7 +714,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -737,7 +737,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140824",
+        "sessionName": "sirotaA-Ed-10-20140824",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -760,7 +760,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140825",
+        "sessionName": "sirotaA-Ed-10-20140825",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -783,7 +783,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140828",
+        "sessionName": "sirotaA-Ed-10-20140828",
         "mazeName": "nor",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -806,7 +806,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140829",
+        "sessionName": "sirotaA-Ed-10-20140829",
         "mazeName": "nor",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -829,7 +829,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140831",
+        "sessionName": "sirotaA-Ed-10-20140831",
         "mazeName": "nor",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -852,7 +852,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140901",
+        "sessionName": "sirotaA-Ed-10-20140901",
         "mazeName": "nor",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -875,7 +875,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140903",
+        "sessionName": "sirotaA-Ed-10-20140903",
         "mazeName": "cot",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -898,7 +898,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140905",
+        "sessionName": "sirotaA-Ed-10-20140905",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -923,7 +923,7 @@
     ],
     "er02": [
       {
-        "sessionName": "er02-20110831",
+        "sessionName": "sirotaA-er-02-20110831",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -946,7 +946,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110901",
+        "sessionName": "sirotaA-er-02-20110901",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -969,7 +969,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110902",
+        "sessionName": "sirotaA-er-02-20110902",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -992,7 +992,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110905",
+        "sessionName": "sirotaA-er-02-20110905",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1015,7 +1015,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110906",
+        "sessionName": "sirotaA-er-02-20110906",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1038,7 +1038,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110907",
+        "sessionName": "sirotaA-er-02-20110907",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1061,7 +1061,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110908",
+        "sessionName": "sirotaA-er-02-20110908",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1084,7 +1084,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er02-20110913",
+        "sessionName": "sirotaA-er-02-20110913",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1109,7 +1109,7 @@
     ],
     "ER06": [
       {
-        "sessionName": "ER06-20130611",
+        "sessionName": "sirotaA-ER-06-20130611",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -1132,7 +1132,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -1155,7 +1155,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -1185,7 +1185,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -1210,7 +1210,7 @@
     ],
     "setup_ZY0519": [
       {
-        "sessionName": "ZY0519-20190820",
+        "sessionName": "sirotaA-ZY-0519-20190820",
         "mazeName": "tfr",
         "trialName": "all",
         "dataLoggers": [
@@ -1244,7 +1244,7 @@
     ],
     "setup_ZY1219": [
       {
-        "sessionName": "ZY1219-20191107",
+        "sessionName": "sirotaA-ZY-1219-20191107",
         "mazeName": "frr",
         "trialName": "all",
         "dataLoggers": [
@@ -1278,7 +1278,7 @@
     ],
     "rs0317": [
       {
-        "sessionName": "rs0317-20170517",
+        "sessionName": "sirotaA-rs-0317-20170517",
         "mazeName": "hcf",
         "trialName": "all",
         "xyzSampleRate": 120.0,
@@ -1303,7 +1303,7 @@
     ],
     "setup_g10": [
       {
-        "sessionName": "g10-20130425",
+        "sessionName": "sirotaA-g-10-20130425",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1333,7 +1333,7 @@
     ],
     "setup_IF14": [
       {
-        "sessionName": "IF14-20190712a",
+        "sessionName": "sirotaA-IF-14-20190712a",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 259.0,
@@ -1358,7 +1358,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "IF14-20190712b",
+        "sessionName": "sirotaA-IF-14-20190712b",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 259.0,
@@ -1385,7 +1385,7 @@
     ],
     "ctx": [
       {
-        "sessionName": "Ed10-20140806",
+        "sessionName": "sirotaA-Ed-10-20140806",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1408,7 +1408,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140807",
+        "sessionName": "sirotaA-Ed-10-20140807",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1431,7 +1431,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140808",
+        "sessionName": "sirotaA-Ed-10-20140808",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1454,7 +1454,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120123",
+        "sessionName": "sirotaA-jg-04-20120123",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -1479,7 +1479,7 @@
     ],
     "Trials-ER06": [
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1535,7 +1535,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1591,7 +1591,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1647,7 +1647,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1702,7 +1702,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1758,7 +1758,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1814,7 +1814,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1871,7 +1871,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1927,7 +1927,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -1985,7 +1985,7 @@
     ],
     "MjgEdER2016_bhv": [
       {
-        "sessionName": "jg05-20120309",
+        "sessionName": "sirotaA-jg-05-20120309",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2008,7 +2008,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120310",
+        "sessionName": "sirotaA-jg-05-20120310",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2031,7 +2031,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120311",
+        "sessionName": "sirotaA-jg-05-20120311",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2054,7 +2054,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120312",
+        "sessionName": "sirotaA-jg-05-20120312",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2077,7 +2077,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2100,7 +2100,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 119.881035,
@@ -2131,7 +2131,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -2161,7 +2161,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 199.997752,
@@ -2186,7 +2186,7 @@
     ],
     "ncp": [
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2230,7 +2230,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140709",
+        "sessionName": "sirotaA-Ed-01-20140709",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2274,7 +2274,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140717",
+        "sessionName": "sirotaA-Ed-01-20140717",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2318,7 +2318,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140528",
+        "sessionName": "sirotaA-Ed-05-20140528",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2362,7 +2362,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2406,7 +2406,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140815",
+        "sessionName": "sirotaA-Ed-10-20140815",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2450,7 +2450,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2494,7 +2494,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "subject": {
           "name": "Ed01",
           "correction": {
@@ -2540,7 +2540,7 @@
     ],
     "Ed10": [
       {
-        "sessionName": "Ed10-20140813",
+        "sessionName": "sirotaA-Ed-10-20140813",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2568,7 +2568,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -2596,7 +2596,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 119.881035,
@@ -2632,7 +2632,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "Ed10-20140819",
+        "sessionName": "sirotaA-Ed-10-20140819",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 119.881035,
@@ -2660,7 +2660,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "Ed10-20140819",
+        "sessionName": "sirotaA-Ed-10-20140819",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 119.881035,
@@ -2688,7 +2688,7 @@
         "rotation": 0.0
       },
       {
-        "sessionName": "Ed10-20140819",
+        "sessionName": "sirotaA-Ed-10-20140819",
         "mazeName": "cof",
         "trialName": "fly",
         "xyzSampleRate": 119.881035,
@@ -2720,7 +2720,7 @@
     ],
     "ER06-spots": [
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -2780,7 +2780,7 @@
     ],
     "ER06-20130613-spots": [
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -2838,7 +2838,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -2898,7 +2898,7 @@
     ],
     "BehaviorPlaceCode": [
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "subject": {
           "name": "er01",
           "correction": {
@@ -2956,7 +2956,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110721",
+        "sessionName": "sirotaA-er-01-20110721",
         "subject": {
           "name": "er01",
           "correction": {
@@ -3014,7 +3014,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110722",
+        "sessionName": "sirotaA-er-01-20110722",
         "subject": {
           "name": "er01",
           "correction": {
@@ -3072,7 +3072,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -3134,7 +3134,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -3190,7 +3190,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -3246,7 +3246,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130624",
+        "sessionName": "sirotaA-ER-06-20130624",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -3302,7 +3302,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130625",
+        "sessionName": "sirotaA-ER-06-20130625",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -3358,7 +3358,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140813",
+        "sessionName": "sirotaA-Ed-10-20140813",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -3414,7 +3414,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140814",
+        "sessionName": "sirotaA-Ed-10-20140814",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -3470,7 +3470,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140815",
+        "sessionName": "sirotaA-Ed-10-20140815",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -3526,7 +3526,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -3582,7 +3582,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -3646,7 +3646,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120128",
+        "sessionName": "sirotaA-jg-04-20120128",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3702,7 +3702,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120129",
+        "sessionName": "sirotaA-jg-04-20120129",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3758,7 +3758,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120130",
+        "sessionName": "sirotaA-jg-04-20120130",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3814,7 +3814,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120131",
+        "sessionName": "sirotaA-jg-04-20120131",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3870,7 +3870,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120201",
+        "sessionName": "sirotaA-jg-04-20120201",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3926,7 +3926,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120210",
+        "sessionName": "sirotaA-jg-04-20120210",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -3982,7 +3982,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120211",
+        "sessionName": "sirotaA-jg-04-20120211",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -4038,7 +4038,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120212",
+        "sessionName": "sirotaA-jg-04-20120212",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -4094,7 +4094,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120213",
+        "sessionName": "sirotaA-jg-04-20120213",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -4150,7 +4150,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120309",
+        "sessionName": "sirotaA-jg-05-20120309",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4206,7 +4206,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120310",
+        "sessionName": "sirotaA-jg-05-20120310",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4262,7 +4262,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120311",
+        "sessionName": "sirotaA-jg-05-20120311",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4318,7 +4318,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120312",
+        "sessionName": "sirotaA-jg-05-20120312",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4374,7 +4374,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120315",
+        "sessionName": "sirotaA-jg-05-20120315",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4430,7 +4430,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120316",
+        "sessionName": "sirotaA-jg-05-20120316",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4486,7 +4486,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4542,7 +4542,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120323",
+        "sessionName": "sirotaA-jg-05-20120323",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4598,7 +4598,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120324",
+        "sessionName": "sirotaA-jg-05-20120324",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4654,7 +4654,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120325",
+        "sessionName": "sirotaA-jg-05-20120325",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4713,7 +4713,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120329",
+        "sessionName": "sirotaA-jg-05-20120329",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -4767,7 +4767,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "FS03-20201222",
+        "sessionName": "sirotaA-FS-03-20201222",
         "subject": {
           "name": "er01",
           "correction": {
@@ -4825,7 +4825,7 @@
     ],
     "EgoProCode2D": [
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "subject": {
           "name": "er01",
           "correction": {
@@ -4878,7 +4878,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110721",
+        "sessionName": "sirotaA-er-01-20110721",
         "subject": {
           "name": "er01",
           "correction": {
@@ -4931,7 +4931,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110722",
+        "sessionName": "sirotaA-er-01-20110722",
         "subject": {
           "name": "er01",
           "correction": {
@@ -4984,7 +4984,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -5043,7 +5043,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -5096,7 +5096,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -5149,7 +5149,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130624",
+        "sessionName": "sirotaA-ER-06-20130624",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -5202,7 +5202,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130625",
+        "sessionName": "sirotaA-ER-06-20130625",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -5255,7 +5255,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140813",
+        "sessionName": "sirotaA-Ed-10-20140813",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -5308,7 +5308,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140814",
+        "sessionName": "sirotaA-Ed-10-20140814",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -5361,7 +5361,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140815",
+        "sessionName": "sirotaA-Ed-10-20140815",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -5414,7 +5414,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -5467,7 +5467,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -5528,7 +5528,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120128",
+        "sessionName": "sirotaA-jg-04-20120128",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5581,7 +5581,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120129",
+        "sessionName": "sirotaA-jg-04-20120129",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5634,7 +5634,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120130",
+        "sessionName": "sirotaA-jg-04-20120130",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5687,7 +5687,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120131",
+        "sessionName": "sirotaA-jg-04-20120131",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5740,7 +5740,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120201",
+        "sessionName": "sirotaA-jg-04-20120201",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5793,7 +5793,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120210",
+        "sessionName": "sirotaA-jg-04-20120210",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5846,7 +5846,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120211",
+        "sessionName": "sirotaA-jg-04-20120211",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5899,7 +5899,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120212",
+        "sessionName": "sirotaA-jg-04-20120212",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -5952,7 +5952,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120213",
+        "sessionName": "sirotaA-jg-04-20120213",
         "subject": {
           "name": "jg04",
           "correction": {
@@ -6005,7 +6005,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120309",
+        "sessionName": "sirotaA-jg-05-20120309",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6058,7 +6058,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120310",
+        "sessionName": "sirotaA-jg-05-20120310",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6111,7 +6111,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120311",
+        "sessionName": "sirotaA-jg-05-20120311",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6164,7 +6164,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120312",
+        "sessionName": "sirotaA-jg-05-20120312",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6217,7 +6217,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120315",
+        "sessionName": "sirotaA-jg-05-20120315",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6270,7 +6270,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120316",
+        "sessionName": "sirotaA-jg-05-20120316",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6323,7 +6323,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6376,7 +6376,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120323",
+        "sessionName": "sirotaA-jg-05-20120323",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6429,7 +6429,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120324",
+        "sessionName": "sirotaA-jg-05-20120324",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6482,7 +6482,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120329",
+        "sessionName": "sirotaA-jg-05-20120329",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6533,7 +6533,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "FS03-20201222",
+        "sessionName": "sirotaA-FS-03-20201222",
         "subject": {
           "name": "er01",
           "correction": {
@@ -6586,7 +6586,7 @@
     ],
     "EgoProCode2D_CA3": [
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "subject": {
           "name": "er01",
           "correction": {
@@ -6635,7 +6635,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110721",
+        "sessionName": "sirotaA-er-01-20110721",
         "subject": {
           "name": "er01",
           "correction": {
@@ -6684,7 +6684,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110722",
+        "sessionName": "sirotaA-er-01-20110722",
         "subject": {
           "name": "er01",
           "correction": {
@@ -6733,7 +6733,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130624",
+        "sessionName": "sirotaA-ER-06-20130624",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -6782,7 +6782,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140815",
+        "sessionName": "sirotaA-Ed-10-20140815",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -6831,7 +6831,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140816",
+        "sessionName": "sirotaA-Ed-10-20140816",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -6880,7 +6880,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "subject": {
           "name": "Ed10",
           "correction": {
@@ -6937,7 +6937,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120329",
+        "sessionName": "sirotaA-jg-05-20120329",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -6986,7 +6986,7 @@
     ],
     "EgoProCode2d_CA1": [
       {
-        "sessionName": "FS03-20201222",
+        "sessionName": "sirotaA-FS-03-20201222",
         "subject": {
           "name": "er01",
           "correction": {
@@ -7033,7 +7033,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130612",
+        "sessionName": "sirotaA-ER-06-20130612",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -7088,7 +7088,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -7137,7 +7137,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "subject": {
           "name": "ER06",
           "correction": {
@@ -7186,7 +7186,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120309",
+        "sessionName": "sirotaA-jg-05-20120309",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7235,7 +7235,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120310",
+        "sessionName": "sirotaA-jg-05-20120310",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7284,7 +7284,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120311",
+        "sessionName": "sirotaA-jg-05-20120311",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7333,7 +7333,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120312",
+        "sessionName": "sirotaA-jg-05-20120312",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7382,7 +7382,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120315",
+        "sessionName": "sirotaA-jg-05-20120315",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7431,7 +7431,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120316",
+        "sessionName": "sirotaA-jg-05-20120316",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7480,7 +7480,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7529,7 +7529,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120323",
+        "sessionName": "sirotaA-jg-05-20120323",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7578,7 +7578,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120324",
+        "sessionName": "sirotaA-jg-05-20120324",
         "subject": {
           "name": "jg05",
           "correction": {
@@ -7629,7 +7629,7 @@
     ],
     "BHV_B4H5": [
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7652,7 +7652,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110721",
+        "sessionName": "sirotaA-er-01-20110721",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7675,7 +7675,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -7705,7 +7705,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7728,7 +7728,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140709",
+        "sessionName": "sirotaA-Ed-01-20140709",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7751,7 +7751,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7774,7 +7774,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7797,7 +7797,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140528",
+        "sessionName": "sirotaA-Ed-05-20140528",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7820,7 +7820,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "mazeName": "ont",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7843,7 +7843,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140813",
+        "sessionName": "sirotaA-Ed-10-20140813",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7866,7 +7866,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 119.881035,
@@ -7897,7 +7897,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120127",
+        "sessionName": "sirotaA-jg-04-20120127",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7920,7 +7920,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120128",
+        "sessionName": "sirotaA-jg-04-20120128",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7943,7 +7943,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120129",
+        "sessionName": "sirotaA-jg-04-20120129",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7966,7 +7966,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120130",
+        "sessionName": "sirotaA-jg-04-20120130",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -7989,7 +7989,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120131",
+        "sessionName": "sirotaA-jg-04-20120131",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8012,7 +8012,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120201",
+        "sessionName": "sirotaA-jg-04-20120201",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8035,7 +8035,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120210",
+        "sessionName": "sirotaA-jg-04-20120210",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8058,7 +8058,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120211",
+        "sessionName": "sirotaA-jg-04-20120211",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8081,7 +8081,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120212",
+        "sessionName": "sirotaA-jg-04-20120212",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8104,7 +8104,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg04-20120213",
+        "sessionName": "sirotaA-jg-04-20120213",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8127,7 +8127,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120309",
+        "sessionName": "sirotaA-jg-05-20120309",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8150,7 +8150,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120310",
+        "sessionName": "sirotaA-jg-05-20120310",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8173,7 +8173,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120311",
+        "sessionName": "sirotaA-jg-05-20120311",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8196,7 +8196,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120312",
+        "sessionName": "sirotaA-jg-05-20120312",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8219,7 +8219,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8244,7 +8244,7 @@
     ],
     "ER06_BHV": [
       {
-        "sessionName": "ER06-20130613",
+        "sessionName": "sirotaA-ER-06-20130613",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 199.997752,
@@ -8274,7 +8274,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 199.997752,
@@ -8299,7 +8299,7 @@
     ],
     "exp_flight": [
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "mazeName": "cof",
         "trialName": "gnd",
         "xyzSampleRate": 199.997752,
@@ -8322,7 +8322,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "ER06-20130614",
+        "sessionName": "sirotaA-ER-06-20130614",
         "mazeName": "cof",
         "trialName": "fly",
         "xyzSampleRate": 199.997752,
@@ -8350,7 +8350,7 @@
     ],
     "Ed10_darklight": [
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "dark",
         "xyzSampleRate": 119.881035,
@@ -8377,7 +8377,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140817",
+        "sessionName": "sirotaA-Ed-10-20140817",
         "mazeName": "cof",
         "trialName": "light",
         "xyzSampleRate": 119.881035,
@@ -8406,7 +8406,7 @@
     ],
     "Ed10VR_opticflow": [
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -8429,7 +8429,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "of1x1",
         "xyzSampleRate": 149.9974321,
@@ -8454,7 +8454,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "of2x2",
         "xyzSampleRate": 149.9974321,
@@ -8479,7 +8479,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "of1x3",
         "xyzSampleRate": 149.9974321,
@@ -8504,7 +8504,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "of12x4",
         "xyzSampleRate": 149.9974321,
@@ -8531,7 +8531,7 @@
     ],
     "Ed10VR_20160823": [
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -8554,7 +8554,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "rov",
         "trialName": "tel_C1",
         "xyzSampleRate": 149.9974321,
@@ -8579,7 +8579,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "rov",
         "trialName": "tel_S1",
         "xyzSampleRate": 149.9974321,
@@ -8604,7 +8604,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "rov",
         "trialName": "stf",
         "xyzSampleRate": 149.9974321,
@@ -8631,7 +8631,7 @@
     ],
     "Ed10_20140822.rov": [
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -8654,7 +8654,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "stf",
         "xyzSampleRate": 149.9974321,
@@ -8681,7 +8681,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "vobj",
         "xyzSampleRate": 149.9974321,
@@ -8707,7 +8707,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "blk",
         "xyzSampleRate": 149.9974321,
@@ -8732,7 +8732,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "fly",
         "xyzSampleRate": 149.9974321,
@@ -8759,7 +8759,7 @@
     ],
     "Ed10-20140822.cof": [
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8784,7 +8784,7 @@
     ],
     "Ed10-20140820.cof": [
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -8809,7 +8809,7 @@
     ],
     "Ed10VR_teleport": [
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -8832,7 +8832,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "tel_C1",
         "xyzSampleRate": 149.9974321,
@@ -8857,7 +8857,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "tel_S1",
         "xyzSampleRate": 149.9974321,
@@ -8882,7 +8882,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "tel_C2",
         "xyzSampleRate": 149.9974321,
@@ -8907,7 +8907,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "tel_S2",
         "xyzSampleRate": 149.9974321,
@@ -8932,7 +8932,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "tel_A1",
         "xyzSampleRate": 149.9974321,
@@ -8959,7 +8959,7 @@
     ],
     "Ed10VR_teleport_com": [
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -8982,7 +8982,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "Ctel_C",
         "xyzSampleRate": 149.9974321,
@@ -9008,7 +9008,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "Ctel_S",
         "xyzSampleRate": 149.9974321,
@@ -9036,7 +9036,7 @@
     ],
     "Ed10VR": [
       {
-        "sessionName": "Ed10-20140820",
+        "sessionName": "sirotaA-Ed-10-20140820",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -9059,7 +9059,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140821",
+        "sessionName": "sirotaA-Ed-10-20140821",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -9082,7 +9082,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140822",
+        "sessionName": "sirotaA-Ed-10-20140822",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -9105,7 +9105,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140823",
+        "sessionName": "sirotaA-Ed-10-20140823",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -9128,7 +9128,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed10-20140825",
+        "sessionName": "sirotaA-Ed-10-20140825",
         "mazeName": "rov",
         "trialName": "all",
         "xyzSampleRate": 149.9974321,
@@ -9153,7 +9153,7 @@
     ],
     "training_hand_labeled": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9176,7 +9176,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9201,7 +9201,7 @@
     ],
     "training_hand_labeled_emb": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9224,7 +9224,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9249,7 +9249,7 @@
     ],
     "hand_labeled": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9272,7 +9272,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9295,7 +9295,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9318,7 +9318,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9341,7 +9341,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9364,7 +9364,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "mazeName": "ont",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9389,7 +9389,7 @@
     ],
     "nn_labeled": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9412,7 +9412,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9435,7 +9435,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9458,7 +9458,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9481,7 +9481,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9504,7 +9504,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "mazeName": "ont",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9529,7 +9529,7 @@
     ],
     "hand_labeled_jg": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9552,7 +9552,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9575,7 +9575,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9598,7 +9598,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9623,7 +9623,7 @@
     ],
     "hand_labeled_Ed": [
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9646,7 +9646,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9669,7 +9669,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9692,7 +9692,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "mazeName": "ont",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9717,7 +9717,7 @@
     ],
     "training_hand_labeled_reduced": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9740,7 +9740,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9765,7 +9765,7 @@
     ],
     "hand_labeled_jg_reduced": [
       {
-        "sessionName": "jg05-20120317",
+        "sessionName": "sirotaA-jg-05-20120317",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9788,7 +9788,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "er01-20110719",
+        "sessionName": "sirotaA-er-01-20110719",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9811,7 +9811,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9834,7 +9834,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9859,7 +9859,7 @@
     ],
     "hand_labeled_Ed_reduced": [
       {
-        "sessionName": "Ed01-20140707",
+        "sessionName": "sirotaA-Ed-01-20140707",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9882,7 +9882,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140624",
+        "sessionName": "sirotaA-Ed-03-20140624",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9905,7 +9905,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed03-20140625",
+        "sessionName": "sirotaA-Ed-03-20140625",
         "mazeName": "cof",
         "trialName": "all",
         "xyzSampleRate": 119.881035,
@@ -9928,7 +9928,7 @@
         "thetaRefGeneral": null
       },
       {
-        "sessionName": "Ed05-20140529",
+        "sessionName": "sirotaA-Ed-05-20140529",
         "mazeName": "ont",
         "trialName": "all",
         "xyzSampleRate": 119.881035,

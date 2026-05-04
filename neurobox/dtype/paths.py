@@ -65,7 +65,7 @@ from pathlib import Path
 
 _SESSION_RE = re.compile(
     r'^(?P<sourceId>.+?)-(?P<userId>[A-Za-z]+)-(?P<subjectId>\d+)'
-    r'-(?P<date>\d{8})$'
+    r'-(?P<date>\d{8}[a-zA-Z]*)$'
 )
 
 

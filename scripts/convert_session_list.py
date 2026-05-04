@@ -338,7 +338,83 @@ def _set_nested(d: dict, path: list[str], val: Any) -> None:
 # Main
 # ---------------------------------------------------------------------------
 
-def convert(matlab_path: str, json_path: str) -> None:
+def _translate_session_name(
+    legacy:    str,
+    source_id: str = "sirotaA",
+) -> str:
+    """Translate a MATLAB legacy session name to neurobox 4-part naming.
+
+    The MATLAB convention is ``<userId><subjectId>-<date>``, e.g.
+    ``jg05-20120316`` (user ``jg``, subject ``05``, date ``20120316``).
+    The neurobox convention (matching :class:`NBSessionPaths`) is
+    ``<sourceId>-<userId>-<subjectId>-<date>``, with the four parts
+    separated by single hyphens.
+
+    Examples
+    --------
+    >>> _translate_session_name("jg05-20120316")
+    'sirotaA-jg-05-20120316'
+    >>> _translate_session_name("Ed03-20140624a")
+    'sirotaA-Ed-03-20140624a'
+    >>> _translate_session_name("ER06-20130612", source_id="evgenyB")
+    'evgenyB-ER-06-20130612'
+
+    Parameters
+    ----------
+    legacy:
+        Original MATLAB session name.
+    source_id:
+        Source/lab identifier to use as the new first component.
+        Defaults to ``'sirotaA'`` since most labbox/MTA data
+        originated in the Sirota lab.
+
+    Returns
+    -------
+    str
+        4-part neurobox name.  If *legacy* doesn't match the
+        ``<letters><digits>-<date>`` pattern (e.g. it's already in
+        4-part form, or some other layout), it's returned unchanged.
+    """
+    m = re.match(r"^([A-Za-z]+)(\d+)-(\d{8}[a-zA-Z]*)$", legacy)
+    if not m:
+        return legacy           # leave unrecognised names alone
+    user, subj, date = m.group(1), m.group(2), m.group(3)
+    return f"{source_id}-{user}-{subj}-{date}"
+
+
+def _apply_neurobox_naming(
+    lists:     dict[str, list[dict]],
+    source_id: str = "sirotaA",
+) -> tuple[dict[str, list[dict]], int]:
+    """Rewrite every ``sessionName`` in *lists* using
+    :func:`_translate_session_name`.
+
+    Returns the rewritten dict and the count of names that actually
+    changed.  Operates on a deep-copied structure; the input is left
+    untouched.
+    """
+    import copy
+    out = copy.deepcopy(lists)
+    changed = 0
+    for entries in out.values():
+        for s in entries:
+            old = s.get("sessionName")
+            if not isinstance(old, str):
+                continue
+            new = _translate_session_name(old, source_id=source_id)
+            if new != old:
+                s["sessionName"] = new
+                changed += 1
+    return out, changed
+
+
+def convert(
+    matlab_path:     str,
+    json_path:       str,
+    *,
+    neurobox_names:  bool = False,
+    source_id:       str  = "sirotaA",
+) -> None:
     src = Path(matlab_path).read_text(encoding="utf-8", errors="replace")
 
     # Jump to the switch statement
@@ -360,6 +436,11 @@ def convert(matlab_path: str, json_path: str) -> None:
             lists[name] = entries
             print(f"  {name}: {len(entries)} session(s)")
 
+    if neurobox_names:
+        lists, n_changed = _apply_neurobox_naming(lists, source_id)
+        print(f"Translated {n_changed} sessionName values to neurobox "
+              f"4-part naming (source_id={source_id!r}).")
+
     out = Path(json_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"lists": lists}, indent=2, ensure_ascii=False),
@@ -378,12 +459,34 @@ def _cli_main() -> None:
     )
     p.add_argument("matlab_file", help="Path to get_session_list_v3.m")
     p.add_argument("output_json", help="Output path for sessions.json")
+    p.add_argument(
+        "--neurobox-names",
+        action="store_true",
+        help="Translate sessionName from legacy '<user><id>-<date>' "
+             "form to neurobox 4-part form '<source>-<user>-<id>-<date>'",
+    )
+    p.add_argument(
+        "--source-id",
+        default="sirotaA",
+        help="Source identifier to use as the first component when "
+             "translating to neurobox naming",
+    )
     args = p.parse_args()
-    convert(args.matlab_file, args.output_json)
+    convert(
+        args.matlab_file, args.output_json,
+        neurobox_names = args.neurobox_names,
+        source_id      = args.source_id,
+    )
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print(f"Usage: {sys.argv[0]} <get_session_list_v3.m> <output.json>")
+    # Lightweight legacy invocation:  convert <in> <out>
+    # Full CLI:                       see _cli_main()
+    if "--neurobox-names" in sys.argv or "--source-id" in " ".join(sys.argv):
+        _cli_main()
+    elif len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <get_session_list_v3.m> <output.json> "
+              f"[--neurobox-names] [--source-id NAME]")
         sys.exit(1)
-    convert(sys.argv[1], sys.argv[2])
+    else:
+        convert(sys.argv[1], sys.argv[2])

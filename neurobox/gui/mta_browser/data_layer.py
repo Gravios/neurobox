@@ -131,7 +131,7 @@ def _trial_from_dot_stem(filename: str) -> Optional[tuple[str, str]]:
 # name looks like.
 _NEUROBOX_SESSION_RE = re.compile(
     r"^(?P<sourceId>.+?)-(?P<userId>[A-Za-z]+)-"
-    r"(?P<subject>\d+)-(?P<date>\d{8})$"
+    r"(?P<subject>\d+)-(?P<date>\d{8}[a-zA-Z]*)$"
 )
 
 
