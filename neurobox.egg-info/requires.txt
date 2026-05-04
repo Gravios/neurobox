@@ -4,9 +4,22 @@ pyyaml>=6.0
 python-dotenv>=1.0
 pandas>=2.0
 
+[classify]
+torch>=2.0
+scikit-learn>=1.4
+
 [dev]
 pytest>=8
 pytest-cov
 
 [full]
 scikit-learn>=1.4
+
+[gui]
+PySide6>=6.8
+
+[hmm]
+hmmlearn>=0.3
+
+[viz]
+matplotlib>=3.7
