@@ -449,17 +449,23 @@ def _populate_session(
 ) -> None:
     """Assign all session fields after sync matching is resolved.
 
+    Round 23 — also populates the new :class:`StreamSync` /
+    :class:`TrialWindow` fields alongside the legacy ``NBEpoch`` ones,
+    so callers can use either API without re-running sync.
+
     Parameters
     ----------
     save_xyz:
         If True (default), save the xyz array to ``session.paths.pos_file``
         via :meth:`~neurobox.dtype.xyz.NBDxyz.save_npy`.
     """
+    from neurobox.dtype.sync import StreamSync, TrialWindow
+
     spath    = session.spath
     name     = session.name
     filebase = session.filebase
 
-    # ── session.sync ────────────────────────────────────────────────────── #
+    # ── session.sync (legacy NBEpoch) ─────────────────────────────────── #
     first_start = float(matched_windows[0,  0])
     last_stop   = float(matched_windows[-1, 1])
     session.sync = NBEpoch(
@@ -469,7 +475,18 @@ def _populate_session(
         label      = "sync",
     )
 
-    # ── xyz.sync (per-block windows) ─────────────────────────────────────── #
+    # ── session.window (round 23 — multi-segment-aware TrialWindow) ───── #
+    # The whole-session "all" trial spans the union of all matched
+    # mocap windows, expressed in master-clock seconds.  Single
+    # period [first_start, last_stop] mirrors session.sync but as
+    # the canonical TrialWindow type.
+    session.window = TrialWindow(
+        periods = np.array([[first_start, last_stop]], dtype=np.float64),
+        label   = "all",
+        name    = "all",
+    )
+
+    # ── xyz.sync (legacy per-block NBEpoch) ──────────────────────────── #
     xyz_sync = NBEpoch(
         matched_windows.copy(),
         samplerate = 1.0,
@@ -477,48 +494,93 @@ def _populate_session(
         label      = "xyz_sync",
     )
 
-    # ── Resolve pos file path ─────────────────────────────────────────────── #
+    # ── xyz.stream_sync (round 23 — multi-segment record windows) ────── #
+    # _build_xyz_array produced a session-frame-aligned array spanning
+    # [first_start, last_stop] with zero-fills inside the gaps where
+    # Vicon was off.  StreamSync's invariant is that the data length
+    # must equal total_samples summed over segments, so we describe
+    # the array as a single virtual segment covering the entire span.
+    #
+    # The TRUE multi-segment recording windows are also stashed on
+    # the NBData via the `recording_windows` attribute (a plain
+    # ndarray, separate from stream_sync) so callers that want to
+    # zero out gap samples or compute valid-sample masks can do so:
+    #
+    #    valid = np.zeros(xyz.n_samples, dtype=bool)
+    #    for t0, t1 in xyz.recording_windows:
+    #        i0 = int(round((t0 - first_start) * xyz_sr))
+    #        i1 = int(round((t1 - first_start) * xyz_sr))
+    #        valid[i0:i1] = True
+    #
+    # When you need a CONTIGUOUS, real-only slice (no gap-fill) for
+    # downstream analysis, build a compact xyz via:
+    #
+    #    win    = TrialWindow(periods=[[t0, t1]])
+    #    sub    = xyz.restrict_to_window(win, fill_gaps=False)
+    #
+    # which uses xyz.recording_windows (via stream_sync semantics
+    # below) to skip the zero-filled regions.
+    xyz_stream_sync = StreamSync(
+        segments   = np.array([[first_start, last_stop]],
+                                 dtype=np.float64),
+        samplerate = xyz_sr,
+    )
+
+    # ── Resolve pos file path ─────────────────────────────────────────── #
     pos_path = (
         session.paths.pos_file if _has_paths(session)
         else spath / f"{filebase}.pos.npz"
     )
 
-    # ── session.xyz ─────────────────────────────────────────────────────── #
+    # ── session.xyz ───────────────────────────────────────────────────── #
     session.xyz = NBDxyz(
-        data       = xyz_arr,
-        model      = NBModel(markers=markers),
-        samplerate = xyz_sr,
-        sync       = xyz_sync,
-        origin     = first_start,
-        path       = spath,
-        filename   = pos_path.name,
-        name       = name,
+        data        = xyz_arr,
+        model       = NBModel(markers=markers),
+        samplerate  = xyz_sr,
+        sync        = xyz_sync,           # legacy NBEpoch
+        stream_sync = xyz_stream_sync,    # round 23 multi-segment
+        origin      = first_start,
+        path        = spath,
+        filename    = pos_path.name,
+        name        = name,
     )
+    # Round 23 — true per-block recording windows (Vicon on/off
+    # within the master recording).  Used by callers that want to
+    # mask out the zero-filled gap samples or build a compact
+    # xyz array via xyz.restrict_to_window(fill_gaps=False).
+    session.xyz.recording_windows = matched_windows.copy()
     if save_xyz:
         spath.mkdir(parents=True, exist_ok=True)
         session.xyz.save_npy(pos_path)
         print(f"  xyz saved → {pos_path}")
 
-    # ── session.lfp (lazy shell) ──────────────────────────────────────────── #
+    # ── session.lfp (lazy shell) ──────────────────────────────────────── #
     lfp_sync = NBEpoch(
         np.array([[0.0, record_end_sec]], dtype=np.float64),
         samplerate = 1.0,
         label      = "lfp_sync",
+    )
+    # Round 23 — the LFP / master clock recorded continuously across
+    # the whole session, so its StreamSync is a single segment.
+    lfp_stream_sync = StreamSync.continuous(
+        duration_sec = record_end_sec,
+        samplerate   = lfp_sr,
     )
     lfp_path = (
         session.paths.lfp_file if _has_paths(session)
         else spath / f"{name}.lfp"
     )
     session.lfp = NBDlfp(
-        path       = lfp_path.parent,
-        filename   = lfp_path.name,
-        samplerate = lfp_sr,
-        sync       = lfp_sync,
-        origin     = 0.0,
-        name       = name,
+        path        = lfp_path.parent,
+        filename    = lfp_path.name,
+        samplerate  = lfp_sr,
+        sync        = lfp_sync,
+        stream_sync = lfp_stream_sync,
+        origin      = 0.0,
+        name        = name,
     )
 
-    # ── session.spk ──────────────────────────────────────────────────────── #
+    # ── session.spk ──────────────────────────────────────────────────── #
     try:
         session.spk = NBSpk.load(
             _ephys_base(session),
@@ -530,7 +592,7 @@ def _populate_session(
         print(f"  [warn] Could not load spikes: {e}")
         session.spk = NBSpk(samplerate=wideband_sr)
 
-    # ── session.stc ──────────────────────────────────────────────────────── #
+    # ── session.stc ──────────────────────────────────────────────────── #
     stc_path = (
         session.paths.stc_file("default") if _has_paths(session)
         else spath / f"{filebase}.stc.default.pkl"
