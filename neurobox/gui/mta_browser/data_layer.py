@@ -132,8 +132,10 @@ def scan_project(project_root: Path | str) -> ProjectIndex:
 
         mazes  : list[str]            = []
         trials : dict[str, list[str]] = {}
-        # Pass 1 — discover mazes via .ses.mat files
-        for f in entry.iterdir():
+        # Pass 1 — discover mazes via .ses.mat files.  Sort the
+        # filesystem listing so the result is deterministic across
+        # platforms (ext4 / btrfs / NFS hand back unsorted entries).
+        for f in sorted(entry.iterdir()):
             if f.suffix != ".mat":
                 continue
             mm = _MAZE_RE.search(f.name)
@@ -142,8 +144,8 @@ def scan_project(project_root: Path | str) -> ProjectIndex:
                 if maze not in mazes:
                     mazes.append(maze)
                     trials[maze] = []
-        # Pass 2 — discover trials via .trl.mat files
-        for f in entry.iterdir():
+        # Pass 2 — discover trials via .trl.mat files (also sorted)
+        for f in sorted(entry.iterdir()):
             if f.suffix != ".mat":
                 continue
             tm = _TRIAL_RE.search(f.name)
