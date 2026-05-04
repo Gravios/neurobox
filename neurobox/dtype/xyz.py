@@ -116,21 +116,54 @@ class NBDxyz(NBData):
                 self.model = NBModel(markers=list(ds["markers"]))
             if "samplerate" in ds:
                 self.samplerate = float(ds["samplerate"])
+            # Round 23 — restore multi-segment recording windows when
+            # the file was written with them (sync_nlx_vicon ≥ round 23).
+            if "recording_windows" in ds:
+                self.recording_windows = np.asarray(ds["recording_windows"],
+                                                       dtype=np.float64)
+            # Round 23 — synthesise a default stream_sync covering the
+            # whole array so restrict_to_window works without needing
+            # the user to set one explicitly.
+            from neurobox.dtype.sync import StreamSync
+            n = self._data.shape[0]
+            if self.recording_windows is not None and \
+                    self.recording_windows.size > 0:
+                # Span from first recording start to last recording stop
+                self.stream_sync = StreamSync(
+                    segments   = np.array([[
+                        float(self.recording_windows[0, 0]),
+                        float(self.recording_windows[-1, 1]),
+                    ]], dtype=np.float64),
+                    samplerate = self.samplerate,
+                )
+            else:
+                self.stream_sync = StreamSync.continuous(
+                    duration_sec = n / self.samplerate,
+                    samplerate   = self.samplerate,
+                )
         else:
             self._data = np.load(src, allow_pickle=False)
         return self
 
     def save_npy(self, path: Path | str | None = None) -> None:
-        """Save data to a ``.npz`` file with markers and samplerate."""
+        """Save data to a ``.npz`` file with markers and samplerate.
+
+        Persists ``recording_windows`` (round 23) when set, so the
+        multi-segment ground truth survives the save/load round-trip.
+        """
         dst = Path(path) if path is not None else self.fpath
         if dst is None:
             raise ValueError("No path specified.")
-        np.savez_compressed(
-            dst,
+        kwargs = dict(
             data       = self._data,
             markers    = np.array(self.model.markers),
             samplerate = np.float64(self.samplerate),
         )
+        if self.recording_windows is not None:
+            kwargs["recording_windows"] = np.asarray(
+                self.recording_windows, dtype=np.float64,
+            )
+        np.savez_compressed(dst, **kwargs)
 
     def create(self, *args, **kwargs) -> "NBDxyz":
         return self.load(*args, **kwargs)

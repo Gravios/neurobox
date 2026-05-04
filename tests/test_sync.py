@@ -373,6 +373,129 @@ class TestSyncNlxVicon:
 
         assert session.xyz.origin == pytest.approx(session.sync.data[0, 0])
 
+    # ── Round 23 — StreamSync / TrialWindow integration ─────────── #
+
+    def test_sync_populates_stream_sync(self, fake_session):
+        """sync_nlx_vicon should populate xyz.stream_sync, xyz.recording_windows,
+        session.window, lfp.stream_sync alongside the legacy fields."""
+        from neurobox.dtype.sync_pipelines import sync_nlx_vicon
+        from neurobox.dtype.sync           import StreamSync, TrialWindow
+
+        session, _ = fake_session
+        sync_nlx_vicon(session, ttl_value="0x0040",
+                       stop_ttl="0x0000", save_xyz=False)
+
+        # session.window is a TrialWindow
+        assert isinstance(session.window, TrialWindow)
+        assert session.window.name == "all"
+
+        # xyz.stream_sync is a StreamSync (single spanning segment)
+        assert isinstance(session.xyz.stream_sync, StreamSync)
+        # data is span-aligned; stream_sync covers the whole span
+        np.testing.assert_allclose(
+            session.xyz.stream_sync.master_first,
+            session.window.t_start,
+        )
+        np.testing.assert_allclose(
+            session.xyz.stream_sync.master_last,
+            session.window.t_stop,
+        )
+
+        # xyz.recording_windows holds the per-block ground truth (2 blocks)
+        assert session.xyz.recording_windows is not None
+        assert session.xyz.recording_windows.shape == (2, 2)
+        # Block 1: master [10, 12]; Block 2: master [30, 32]
+        np.testing.assert_allclose(
+            session.xyz.recording_windows[0], [10.0, 12.0], atol=0.05,
+        )
+        np.testing.assert_allclose(
+            session.xyz.recording_windows[1], [30.0, 32.0], atol=0.05,
+        )
+
+        # lfp.stream_sync is continuous over the full recording
+        assert isinstance(session.lfp.stream_sync, StreamSync)
+        assert session.lfp.stream_sync.n_segments == 1
+
+    def test_restrict_to_window_handles_session_aligned_data(
+        self, fake_session
+    ):
+        """xyz.restrict_to_window with a multi-segment session-aligned
+        array should consult recording_windows and zero-fill the gaps
+        appropriately."""
+        from neurobox.dtype.sync_pipelines import sync_nlx_vicon
+        from neurobox.dtype.sync           import TrialWindow
+
+        session, _ = fake_session
+        sync_nlx_vicon(session, ttl_value="0x0040",
+                       stop_ttl="0x0000", save_xyz=False)
+
+        xyz_sr = session.xyz.samplerate
+        # Trial spanning master [11, 31] — straddles the gap [12, 30]
+        win = TrialWindow(periods=np.array([[11.0, 31.0]]), name="task1")
+        sub = session.xyz.restrict_to_window(win)
+
+        # Output: 20 s × xyz_sr samples, contiguous
+        expected_n = int(round(20.0 * xyz_sr))
+        assert sub.data.shape[0] == expected_n
+        # New stream_sync reflects only the recorded portions
+        # ([11, 12] and [30, 31])
+        assert sub.stream_sync.n_segments == 2
+        np.testing.assert_allclose(
+            sub.stream_sync.segments[0], [11.0, 12.0], atol=0.05,
+        )
+        np.testing.assert_allclose(
+            sub.stream_sync.segments[1], [30.0, 31.0], atol=0.05,
+        )
+
+        # The gap-filled middle should be all zeros
+        valid = sub.stream_sync.valid_mask_in_window(11.0, 31.0)
+        gap_region = ~valid
+        assert (sub.data[gap_region] == 0).all() or \
+               (np.abs(sub.data[gap_region]).sum() < 1e-3)
+
+    def test_trial_load_xyz_round_trip_through_disk(self, fake_session):
+        """The user-facing flow: sync → save → NBTrial(window=…).load('xyz').
+
+        Verifies that recording_windows survives the save_npy/load
+        round-trip so the multi-segment-aware restrict_to_window
+        works from disk-loaded data, not just freshly-built data.
+        """
+        from neurobox.dtype                import NBTrial, TrialWindow
+        from neurobox.dtype.sync_pipelines import sync_nlx_vicon
+
+        session, mw = fake_session
+        sync_nlx_vicon(session, ttl_value="0x0040",
+                       stop_ttl="0x0000", save_xyz=True)
+
+        # Build a NBTrial that points at the same project root
+        # (the fake_session fixture writes a project dir under "TEST")
+        win = TrialWindow(periods=np.array([[11.0, 31.0]]), name="task1")
+        # Recover data_root from the session's paths
+        data_root = session.paths.data_root
+        trial = NBTrial(
+            session_name = session.name,
+            maze         = "cof",
+            trial_name   = "task1",
+            project_id   = session.paths.project_id,
+            data_root    = data_root,
+            window       = win,
+        )
+
+        # The actual question — does this work?
+        xyz = trial.load("xyz")
+        # Output is 20 s × 120 Hz = 2400 samples, contiguous
+        assert xyz.data.shape[0] == int(round(20.0 * 120.0))
+        # stream_sync reflects only the parts of the trial window
+        # where Vicon was actually recording
+        assert xyz.stream_sync.n_segments == 2
+        # First recorded sub-segment is around [11, 12]
+        np.testing.assert_allclose(
+            xyz.stream_sync.segments[0], [11.0, 12.0], atol=0.05,
+        )
+        np.testing.assert_allclose(
+            xyz.stream_sync.segments[1], [30.0, 31.0], atol=0.05,
+        )
+
 
 # ── _has_paths / _find_file helpers ─────────────────────────────────────── #
 

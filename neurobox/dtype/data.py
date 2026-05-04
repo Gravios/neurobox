@@ -119,6 +119,17 @@ class NBData(ABC):
         # the data is assumed to be continuous from t=0 at this
         # stream's samplerate (the simple single-source case).
         self.stream_sync: "StreamSync | None" = stream_sync
+        # Round-23 multi-segment recording windows.  Set when the
+        # source array was zero-filled across recording gaps (e.g.
+        # by sync_nlx_vicon for Vicon-on / Vicon-off blocks within
+        # one master-clock recording).  ``None`` means no gap
+        # information available.  Shape ``(n_blocks, 2)`` in
+        # master-clock seconds; non-None implies ``stream_sync``
+        # is a single spanning segment with zero-filled gaps inside
+        # the ``data`` array, and these are the true recording
+        # windows to use for valid-sample masking and
+        # ``restrict_to_window(fill_gaps=False)``.
+        self.recording_windows: "np.ndarray | None" = None
         # Identity hash — computed last so all fields are populated.
         # Mirrors MATLAB MTAData/update_hash.m.
         self.hash: str = ""
@@ -576,14 +587,29 @@ class NBData(ABC):
 
         The returned object's ``data`` covers exactly the trial's
         master-clock window at this stream's samplerate.  Samples
-        where ``self.stream_sync`` was actively recording are copied
-        from ``self.data``; gaps inside the window where the stream
+        where this stream was actively recording are copied from
+        ``self.data``; gaps inside the window where the stream
         wasn't recording are zero-filled (when ``fill_gaps=True``,
         the default — matching MATLAB ``MTAData.resync`` semantics).
 
-        The returned object's ``stream_sync`` is the original
-        intersected with the window, so callers can always recover
-        the valid-vs-gap mask.
+        How "recording windows" are determined
+        --------------------------------------
+        Three possible representations are supported, in priority
+        order:
+
+        1. **``self.recording_windows`` set** (typical for streams
+           assembled from per-block mocap files via
+           :func:`sync_nlx_vicon` and friends).  ``self.data`` is
+           assumed to be a single contiguous array spanning
+           ``self.stream_sync``'s span, with zero-filled gaps inside
+           where this stream wasn't recording; ``recording_windows``
+           identifies the true recording extents in master-clock
+           seconds.
+        2. **``self.stream_sync`` set, no recording_windows** (the
+           explicit multi-segment case where the data array is
+           compact — segments concatenated with no gap fill).
+        3. **Neither set** — assume continuous recording from
+           ``t = 0`` at ``self.samplerate``.
 
         Parameters
         ----------
@@ -594,24 +620,12 @@ class NBData(ABC):
             If True (default), output is contiguous from the trial's
             ``t_start`` to ``t_stop`` with zero-fill in stream gaps.
             If False, output is compact (only the recorded portions
-            concatenated; output length matches the new
-            ``stream_sync.total_samples``).
+            concatenated).
 
         Returns
         -------
         NBData
             New instance.  The original is unchanged.
-
-        Notes
-        -----
-        Multi-period :class:`TrialWindow`s (trials that exclude rest
-        intervals) are handled by iterating over each period and
-        concatenating the per-period results — the output is still a
-        single contiguous array whose length equals the trial's total
-        duration × samplerate (when ``fill_gaps=True``) or the total
-        of overlapped recording samples (when False).
-
-        See :class:`StreamSync` for the underlying arithmetic.
         """
         from neurobox.dtype.sync import StreamSync, TrialWindow
 
@@ -620,62 +634,124 @@ class NBData(ABC):
                 "restrict_to_window: data not loaded; call .load() first."
             )
 
-        # Build a default sync for streams that don't have one set
-        sync = self.stream_sync
-        if sync is None:
-            n = self._data.shape[0]
-            sync = StreamSync.continuous(
-                duration_sec = n / self.samplerate,
-                samplerate   = self.samplerate,
+        # Resolve which sync representation describes this object.
+        # If recording_windows is set, the data is session-frame-
+        # aligned (with zero-fills inside).  We synthesise a
+        # logical sync that maps local samples back to master time
+        # via the spanning stream_sync, but uses recording_windows
+        # for gap-aware slicing.
+        if self.recording_windows is not None and self.stream_sync is not None:
+            # Span sync (single segment) for local↔master arithmetic.
+            span_sync = self.stream_sync
+            # Per-block recording windows for valid-sample selection.
+            real_segments = np.asarray(self.recording_windows,
+                                          dtype=np.float64)
+            sync_for_data = StreamSync(
+                segments   = real_segments,
+                samplerate = self.samplerate,
             )
+            # In this case, "local sample" = sample index in the
+            # session-frame-aligned data array (relative to span start).
+            span_t0 = span_sync.master_first
+            sr      = self.samplerate
 
-        if abs(sync.samplerate - self.samplerate) > 1e-6:
+            def _master_to_local_in_data(t: float) -> int:
+                return int(np.round((t - span_t0) * sr))
+
+        elif self.stream_sync is not None:
+            # Pure compact multi-segment representation: data length
+            # equals stream_sync.total_samples.
+            sync_for_data = self.stream_sync
+            span_t0       = None    # use sync_for_data.local_to_master
+            sr            = self.samplerate
+            _master_to_local_in_data = None
+
+        else:
+            # No sync at all — assume continuous from t=0
+            n  = self._data.shape[0]
+            sr = self.samplerate
+            sync_for_data = StreamSync.continuous(
+                duration_sec = n / sr,
+                samplerate   = sr,
+            )
+            span_t0 = 0.0
+
+            def _master_to_local_in_data(t: float) -> int:
+                return int(np.round(t * sr))
+
+        if abs(sync_for_data.samplerate - self.samplerate) > 1e-6:
             raise ValueError(
-                f"stream_sync.samplerate ({sync.samplerate}) doesn't "
+                f"sync samplerate ({sync_for_data.samplerate}) doesn't "
                 f"match data.samplerate ({self.samplerate})"
             )
 
-        sr  = self.samplerate
         per_period_arrays: list[np.ndarray] = []
         new_segments:      list[list[float]] = []
 
         for p_start, p_stop in window.periods:
             p_start = float(p_start); p_stop = float(p_stop)
-            if fill_gaps:
-                n_out = int(np.round((p_stop - p_start) * sr))
-                # Build a zero-filled buffer for this period
-                shape = (n_out,) + self._data.shape[1:]
-                buf = np.zeros(shape, dtype=self._data.dtype)
-                # Copy in the parts that come from real recording
-                for lo, hi in sync.slice_for_window(p_start, p_stop):
-                    # Map source samples → output offset
-                    src_t0    = sync.local_to_master(lo)
-                    out_lo    = int(np.round((src_t0 - p_start) * sr))
-                    seg_len   = hi - lo
-                    out_hi    = out_lo + seg_len
-                    out_lo    = max(0, out_lo)
-                    out_hi    = min(n_out, out_hi)
-                    src_lo    = lo + (out_lo - int(np.round(
-                        (src_t0 - p_start) * sr
-                    )))
-                    src_hi    = src_lo + (out_hi - out_lo)
-                    if out_hi > out_lo and src_hi > src_lo:
-                        buf[out_lo:out_hi] = self._data[src_lo:src_hi]
-                per_period_arrays.append(buf)
-            else:
-                # Compact: just concat the slices
-                for lo, hi in sync.slice_for_window(p_start, p_stop):
-                    per_period_arrays.append(self._data[lo:hi])
 
-            # Build new segments: per-period overlaps with the source
-            # sync, but expressed in the trial's master-clock frame
-            # (not relative to t_start — keep absolute master time so
-            # downstream callers can still reason in the global frame).
-            for seg_t0, seg_t1 in sync.segments:
+            # Find the parts of this period where the stream actually
+            # recorded — sync_for_data.slice_for_window returns local
+            # indices into a COMPACT view, so we have to translate.
+            recorded_intervals: list[tuple[float, float]] = []
+            for seg_t0, seg_t1 in sync_for_data.segments:
                 ov_t0 = max(seg_t0, p_start)
                 ov_t1 = min(seg_t1, p_stop)
                 if ov_t0 < ov_t1:
-                    new_segments.append([ov_t0, ov_t1])
+                    recorded_intervals.append((ov_t0, ov_t1))
+
+            if fill_gaps:
+                n_out = int(np.round((p_stop - p_start) * sr))
+                shape = (n_out,) + self._data.shape[1:]
+                buf = np.zeros(shape, dtype=self._data.dtype)
+                for ov_t0, ov_t1 in recorded_intervals:
+                    out_lo = int(np.round((ov_t0 - p_start) * sr))
+                    out_hi = int(np.round((ov_t1 - p_start) * sr))
+                    out_lo = max(0, out_lo); out_hi = min(n_out, out_hi)
+                    if span_t0 is not None:
+                        # data is span-aligned: local idx = (t - span_t0) × sr
+                        src_lo = int(np.round((ov_t0 - span_t0) * sr))
+                        src_hi = int(np.round((ov_t1 - span_t0) * sr))
+                    else:
+                        # data is compact: use sync_for_data.master_to_local
+                        src_lo = sync_for_data.master_to_local(ov_t0)
+                        src_hi_lookup = sync_for_data.master_to_local(
+                            ov_t1 - 1.0 / sr
+                        )
+                        src_hi = (src_hi_lookup + 1
+                                  if src_hi_lookup is not None
+                                  else src_lo + (out_hi - out_lo))
+                    src_lo = max(0, src_lo)
+                    src_hi = min(self._data.shape[0], src_hi)
+                    if out_hi > out_lo and src_hi > src_lo:
+                        copy_len = min(out_hi - out_lo, src_hi - src_lo)
+                        buf[out_lo:out_lo + copy_len] = (
+                            self._data[src_lo:src_lo + copy_len]
+                        )
+                per_period_arrays.append(buf)
+            else:
+                # Compact: just concat the recorded slices
+                for ov_t0, ov_t1 in recorded_intervals:
+                    if span_t0 is not None:
+                        src_lo = int(np.round((ov_t0 - span_t0) * sr))
+                        src_hi = int(np.round((ov_t1 - span_t0) * sr))
+                    else:
+                        src_lo = sync_for_data.master_to_local(ov_t0)
+                        src_hi_lookup = sync_for_data.master_to_local(
+                            ov_t1 - 1.0 / sr
+                        )
+                        src_hi = (src_hi_lookup + 1
+                                  if src_hi_lookup is not None
+                                  else src_lo)
+                    src_lo = max(0, src_lo)
+                    src_hi = min(self._data.shape[0], src_hi)
+                    if src_hi > src_lo:
+                        per_period_arrays.append(self._data[src_lo:src_hi])
+
+            # New segments in master-clock seconds
+            for ov_t0, ov_t1 in recorded_intervals:
+                new_segments.append([ov_t0, ov_t1])
 
         new_data = (np.concatenate(per_period_arrays, axis=0)
                      if per_period_arrays
@@ -692,6 +768,9 @@ class NBData(ABC):
         new = self.copy()
         new._data       = new_data
         new.stream_sync = new_sync
+        # Compact form: clear recording_windows since the new data
+        # is no longer span-aligned with internal gaps
+        new.recording_windows = None
         new.update_hash()
         return new
 
