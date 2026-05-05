@@ -24,9 +24,21 @@ How to use
   Browser cell at the end will block — pass ``--no-gui`` semantics
   by setting ``OPEN_GUI = False`` near the top.
 
-Required: a project tree under ``DATA_ROOT`` containing
+Required: a project tree under the resolved ``DATA_ROOT`` containing
 ``sirotaA-jg-05-20120316`` (see the docstring of
 ``demo_sirotaA_jg_05_20120316.py`` for the expected layout).
+
+The data root is resolved with the standard neurobox precedence:
+
+  1. ``$NB_DATA_PATH`` in the process environment
+  2. ``NB_DATA_PATH`` in a ``.env`` file (located via
+     ``$NB_DOTENV_PATH`` or ``cwd/.env``)
+  3. Hardcoded fallback ``/data``
+
+Same for ``$NB_PROJECT_ID`` / ``B01``.  To override for one run::
+
+    NB_DATA_PATH=/mnt/disk2 ipython
+    %run scripts/demo_sirotaA_jg_05_20120316_stepwise.py
 
 Tip: re-running cells is safe.  Step 1 (link) is idempotent;
 step 2 (sync) skips itself if the .ses.pkl checkpoint already
@@ -44,8 +56,56 @@ in cell 1, then re-run only the cells you need.
 # %%
 from __future__ import annotations
 
+import os
 from pathlib import Path
 import numpy as np
+
+
+# ─────────────────────────────────────────────────────────────────── #
+# Helpers — env-driven defaults                                         #
+# ─────────────────────────────────────────────────────────────────── #
+def _resolve_env_defaults() -> dict[str, str]:
+    """Look up NB_DATA_PATH / NB_PROJECT_ID with neurobox precedence:
+
+      1. ``$NB_DATA_PATH`` / ``$NB_PROJECT_ID`` in the process
+         environment (12-factor style — handy for one-off runs).
+      2. Same keys in a ``.env`` file located via
+         :func:`neurobox.config.config.load_config`.
+      3. Hardcoded fallbacks: ``/data`` and ``B01``.
+
+    Returns ``{data_root, project_id, source}``.
+    """
+    out: dict = {"data_root": None, "project_id": None, "source": {}}
+    env_root = os.environ.get("NB_DATA_PATH")
+    env_pid  = os.environ.get("NB_PROJECT_ID")
+    if env_root:
+        out["data_root"] = env_root
+        out["source"]["data_root"] = "$NB_DATA_PATH"
+    if env_pid:
+        out["project_id"] = env_pid
+        out["source"]["project_id"] = "$NB_PROJECT_ID"
+    if out["data_root"] is None or out["project_id"] is None:
+        try:
+            from neurobox.config.config import load_config
+            conf = load_config()
+            if out["data_root"] is None and "NB_DATA_PATH" in conf:
+                out["data_root"] = conf["NB_DATA_PATH"]
+                out["source"]["data_root"] = ".env (NB_DATA_PATH)"
+            if out["project_id"] is None and "NB_PROJECT_ID" in conf:
+                out["project_id"] = conf["NB_PROJECT_ID"]
+                out["source"]["project_id"] = ".env (NB_PROJECT_ID)"
+        except (FileNotFoundError, ImportError):
+            pass
+    if out["data_root"] is None:
+        out["data_root"] = "/data"
+        out["source"]["data_root"] = "default"
+    if out["project_id"] is None:
+        out["project_id"] = "B01"
+        out["source"]["project_id"] = "default"
+    return out
+
+
+_env = _resolve_env_defaults()
 
 # ─────────────────────────────────────────────────────────────────── #
 # Session metadata — parsed from get_session_list_v3.m, BehaviorPlaceCode #
@@ -60,8 +120,13 @@ import numpy as np
 # ── Identity ─────────────────────────────────────────────────────── #
 SESSION_NAME = "sirotaA-jg-05-20120316"
 SUBJECT      = "jg05"             # MATLAB subject.name
-PROJECT_ID   = "general"              # was MATLAB project = 'general'
-DATA_ROOT    = Path("/data")
+# PROJECT_ID and DATA_ROOT come from the environment — see precedence
+# above.  Override per-run with NB_PROJECT_ID / NB_DATA_PATH or by
+# editing these two lines.
+PROJECT_ID   = _env["project_id"]
+DATA_ROOT    = Path(_env["data_root"])
+print(f"[demo] data_root  = {DATA_ROOT}  (source: {_env['source']['data_root']})")
+print(f"[demo] project_id = {PROJECT_ID}  (source: {_env['source']['project_id']})")
 MAZE         = "cof"              # MATLAB mazeName
 TRIAL_NAME   = "all"              # MATLAB trialName
 DATA_LOGGERS = ["nlx", "vicon"]   # MATLAB dataLoggers / dLoggers
