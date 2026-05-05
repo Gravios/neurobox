@@ -38,10 +38,15 @@ Usage
 -----
 ::
 
-    # Basic: assumes /data layout exists with sirotaA-jg-05-20120316
+    # Use defaults (reads NB_DATA_PATH / NB_PROJECT_ID from env or
+    # from a .env file located via $NB_DOTENV_PATH or cwd/.env;
+    # falls back to /data and B01 if neither source has them set)
     python scripts/demo_sirotaA_jg_05_20120316.py
 
-    # Custom project ID and data root
+    # Override the data root for one run via env var
+    NB_DATA_PATH=/mnt/data python scripts/demo_sirotaA_jg_05_20120316.py
+
+    # Or via CLI flag (highest precedence)
     python scripts/demo_sirotaA_jg_05_20120316.py \
         --project-id B01 --data-root /mnt/data
 
@@ -53,6 +58,18 @@ Usage
 
     # Bring up CheckEegStates as well after the browser opens
     python scripts/demo_sirotaA_jg_05_20120316.py --with-eeg-states
+
+The ``data-root`` is resolved by precedence:
+
+  1. ``--data-root`` CLI flag
+  2. ``$NB_DATA_PATH`` in the process environment
+  3. ``NB_DATA_PATH`` in the ``.env`` file (located via
+     ``$NB_DOTENV_PATH`` or ``cwd/.env``)
+  4. Hardcoded fallback ``/data``
+
+The same precedence applies to ``--project-id`` /
+``$NB_PROJECT_ID`` / ``NB_PROJECT_ID`` in ``.env`` /
+fallback ``B01``.
 
 Expected layout under ``--data-root``
 -------------------------------------
@@ -81,6 +98,7 @@ or pass ``--data-root /your/path``.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -91,6 +109,58 @@ import numpy as np
 SESSION_NAME = "sirotaA-jg-05-20120316"
 DEFAULT_PROJECT_ID = "B01"
 DEFAULT_MAZE = "cof"
+
+
+# ─────────────────────────────────────────────────────────────────────── #
+# Resolve data_root / project_id from environment                            #
+# ─────────────────────────────────────────────────────────────────────── #
+
+def _resolve_env_defaults() -> dict[str, str]:
+    """Look up NB_DATA_PATH and NB_PROJECT_ID with the standard
+    neurobox precedence:
+
+      1. ``$NB_DATA_PATH`` / ``$NB_PROJECT_ID`` in the process
+         environment (12-factor style — handy for one-off runs).
+      2. Same keys in a ``.env`` file located via
+         :func:`neurobox.config.config.load_config`
+         (``$NB_DOTENV_PATH`` or ``cwd/.env``).
+      3. Hardcoded fallbacks: ``/data`` and ``B01``.
+
+    Returns a dict ``{data_root, project_id, source}`` where
+    ``source`` describes which step provided each value, for
+    diagnostic printing.
+    """
+    out = {"data_root": None, "project_id": None, "source": {}}
+    # Step 1: process environment
+    env_root = os.environ.get("NB_DATA_PATH")
+    env_pid  = os.environ.get("NB_PROJECT_ID")
+    if env_root:
+        out["data_root"] = env_root
+        out["source"]["data_root"] = "$NB_DATA_PATH"
+    if env_pid:
+        out["project_id"] = env_pid
+        out["source"]["project_id"] = "$NB_PROJECT_ID"
+    # Step 2: .env file
+    if out["data_root"] is None or out["project_id"] is None:
+        try:
+            from neurobox.config.config import load_config
+            conf = load_config()
+            if out["data_root"] is None and "NB_DATA_PATH" in conf:
+                out["data_root"] = conf["NB_DATA_PATH"]
+                out["source"]["data_root"] = ".env (NB_DATA_PATH)"
+            if out["project_id"] is None and "NB_PROJECT_ID" in conf:
+                out["project_id"] = conf["NB_PROJECT_ID"]
+                out["source"]["project_id"] = ".env (NB_PROJECT_ID)"
+        except (FileNotFoundError, ImportError):
+            pass
+    # Step 3: hardcoded fallbacks
+    if out["data_root"] is None:
+        out["data_root"] = "/data"
+        out["source"]["data_root"] = "default"
+    if out["project_id"] is None:
+        out["project_id"] = DEFAULT_PROJECT_ID
+        out["source"]["project_id"] = "default"
+    return out
 
 
 # ─────────────────────────────────────────────────────────────────────── #
@@ -343,6 +413,8 @@ def step_4_open_browser(
 # ─────────────────────────────────────────────────────────────────────── #
 
 def main(argv: list[str] | None = None) -> int:
+    env_defaults = _resolve_env_defaults()
+
     parser = argparse.ArgumentParser(
         prog        = Path(__file__).name,
         description = __doc__.split("Usage")[0].strip(),
@@ -355,14 +427,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--project-id",
-        default=DEFAULT_PROJECT_ID,
-        help=f"Project identifier (default {DEFAULT_PROJECT_ID!r})",
+        default=env_defaults["project_id"],
+        help=f"Project identifier "
+             f"(default {env_defaults['project_id']!r} "
+             f"from {env_defaults['source']['project_id']})",
     )
     parser.add_argument(
         "--data-root",
         type=Path,
-        default=Path("/data"),
-        help="Root of the data tree (default /data)",
+        default=Path(env_defaults["data_root"]),
+        help=f"Root of the data tree "
+             f"(default {env_defaults['data_root']!r} "
+             f"from {env_defaults['source']['data_root']})",
     )
     parser.add_argument(
         "--maze",
@@ -415,7 +491,15 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"=== {Path(__file__).name} ===")
     print(f"Session: {args.session_name}")
-    print(f"Project: {args.project_id} under {args.data_root}")
+    # Annotate with provenance of each setting
+    pid_src  = (env_defaults["source"]["project_id"]
+                if args.project_id == env_defaults["project_id"]
+                else "--project-id flag")
+    root_src = (env_defaults["source"]["data_root"]
+                if str(args.data_root) == env_defaults["data_root"]
+                else "--data-root flag")
+    print(f"Project: {args.project_id} (source: {pid_src})")
+    print(f"Root   : {args.data_root} (source: {root_src})")
     print(f"Maze   : {args.maze}")
 
     # Step 1: link
