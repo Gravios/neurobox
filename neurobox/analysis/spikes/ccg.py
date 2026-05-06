@@ -11,17 +11,14 @@ labbox                            neurobox
 TF/CCG.m                           :func:`ccg`
 TF/Trains2CCG.m                    :func:`trains_to_ccg`
 TF/CCGHeart.c (mex extension)      :mod:`._ccg_engine` (Cython)
-                                   :mod:`._ccg_python_fallback` (numpy)
 ================================  =============================================
 
 Inner-loop strategy
 -------------------
-The hot path is a Cython kernel (:mod:`._ccg_engine`).  When the
-compiled extension isn't available, the wrapper transparently falls
-back to a vectorised pure-Python implementation
-(:mod:`._ccg_python_fallback`) that is algorithmically identical but
-roughly 5-15× slower.  Code that uses :func:`ccg` doesn't need to know
-which path is active.
+The hot path is a Cython kernel (:mod:`._ccg_engine`) compiled at
+install time.  Cython is a hard build dependency — the package
+won't install successfully without a working compiler — so callers
+can rely on the compiled kernel always being present.
 
 Sign convention
 ---------------
@@ -74,13 +71,16 @@ import numpy as np
 # Try the compiled kernel first; fall back to pure Python if not available.
 try:
     from ._ccg_engine import compute_ccg_counts, compute_ccg_counts_with_pairs
-    _USING_CYTHON = True
-except ImportError:                                              # pragma: no cover
-    from ._ccg_python_fallback import (                          # type: ignore[no-redef]
-        compute_ccg_counts,
-        compute_ccg_counts_with_pairs,
-    )
-    _USING_CYTHON = False
+except ImportError as exc:                                       # pragma: no cover
+    raise ImportError(
+        "neurobox.analysis.spikes._ccg_engine is not available — the "
+        "Cython extension wasn't built.  Reinstall with "
+        "`pip install -e .` (or `pip install .`) to rebuild it."
+    ) from exc
+
+# Cython is now a hard requirement; this constant is kept for
+# diagnostic / introspection purposes only.
+_USING_CYTHON = True
 
 
 __all__ = ["ccg", "trains_to_ccg", "CCGResult", "is_compiled"]

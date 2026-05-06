@@ -408,12 +408,160 @@ def _apply_neurobox_naming(
     return out, changed
 
 
+# ─────────────────────────────────────────────────────────────────── #
+# Subject de-duplication                                                #
+# ─────────────────────────────────────────────────────────────────── #
+#
+# The MATLAB get_session_list_v3.m embeds an entire ``subject`` struct
+# into every session entry.  Most fields under that struct are
+# properties of the animal and don't change between recordings:
+#
+#   subject.name                           (always stable)
+#   subject.correction.thetaPhase          (stable for most subjects)
+#   subject.correction.headBody            (stable)
+#   subject.correction.headRoll            (stable)
+#
+# Other fields legitimately do vary per-session:
+#
+#   subject.correction.headYaw, headCenter (depends on rigid-body mount)
+#   subject.channelGroup.{theta,thetarc,ripple}  (depends on probe location)
+#   subject.anatLoc.{CA1,CA3,DG}           (depends on probe location)
+#
+# When ``--lift-subjects`` is set, the converter:
+#   1. Builds a top-level ``subjects`` dict, keyed by subject.name,
+#      holding only the keys that are stable across every session of
+#      that subject.
+#   2. Replaces ``subject: {...struct...}`` in each session entry
+#      with the bare string ``subject: "<name>"``.
+#   3. Promotes the per-session-varying keys to top-level fields on
+#      the session (``correction``, ``channelGroup``, ``anatLoc``).
+#
+# Effective values at lookup-time are the merge:
+#
+#   effective.correction = subjects[s.subject].correction | s.correction
+#   (session wins on conflict)
+
+
+_LIFTABLE_SECTIONS = ("correction", "channelGroup", "anatLoc")
+
+
+def _lift_subjects(
+    lists: dict[str, list[dict]],
+) -> tuple[dict[str, dict], dict[str, list[dict]], dict[str, int]]:
+    """Extract per-subject constants from session entries.
+
+    Returns
+    -------
+    subjects:
+        Mapping ``{subject_name: {name, correction?, channelGroup?,
+        anatLoc?}}``.  Sub-dicts only contain keys that were stable
+        across all of that subject's sessions.
+    new_lists:
+        Same shape as input ``lists``, but each session has:
+          * ``subject``  → bare string (subject name)
+          * ``correction`` / ``channelGroup`` / ``anatLoc`` → top-level
+            on the session, holding only the per-session keys that
+            *don't* have a stable subject default.
+    stats:
+        Diagnostic counts: ``{n_subjects, n_sessions, n_with_extra,
+        n_total_lifted_keys}``.
+    """
+    import copy
+    from collections import defaultdict
+
+    by_subject: dict[str, list[dict]] = defaultdict(list)
+    for entries in lists.values():
+        for s in entries:
+            subj = s.get("subject", {})
+            if isinstance(subj, dict) and subj.get("name"):
+                by_subject[subj["name"]].append(s)
+
+    # Build subjects dict + record which keys are stable per subject
+    subjects: dict[str, dict] = {}
+    stable_keys: dict[str, dict[str, set[str]]] = {}
+    for name, entries in by_subject.items():
+        subj_default: dict = {"name": name}
+        stable_keys[name] = {sec: set() for sec in _LIFTABLE_SECTIONS}
+        for section in _LIFTABLE_SECTIONS:
+            section_keys: set[str] = set()
+            for e in entries:
+                sec = e.get("subject", {}).get(section)
+                if isinstance(sec, dict):
+                    section_keys.update(sec.keys())
+            stable: dict = {}
+            for k in section_keys:
+                vals: list = []
+                for e in entries:
+                    v = e.get("subject", {}).get(section, {}).get(k)
+                    if v is not None:
+                        try:
+                            vals.append(json.dumps(v))
+                        except TypeError:
+                            vals.append(str(v))
+                # Stable means: every session had this value present
+                # AND all values were identical
+                if len(vals) == len(entries) and len(set(vals)) == 1:
+                    stable[k] = entries[0]["subject"].get(
+                        section, {},
+                    )[k]
+                    stable_keys[name][section].add(k)
+            if stable:
+                subj_default[section] = stable
+        subjects[name] = subj_default
+
+    # Build the rewritten sessions list
+    new_lists: dict[str, list[dict]] = {}
+    n_sessions = 0
+    n_with_extra = 0
+    n_total_lifted_keys = 0
+    for list_name, entries in lists.items():
+        new_entries = []
+        for s in entries:
+            n_sessions += 1
+            out = {k: v for k, v in s.items() if k != "subject"}
+            subj_dict = s.get("subject", {})
+            subj_name = (subj_dict.get("name")
+                         if isinstance(subj_dict, dict) else None)
+            if subj_name is None:
+                # Session without a subject — leave as-is.
+                new_entries.append(out)
+                continue
+            out["subject"] = subj_name
+            # Walk each section, keep only the keys that aren't a
+            # subject-default
+            had_extras = False
+            for section in _LIFTABLE_SECTIONS:
+                sec_session = subj_dict.get(section, {}) or {}
+                if not isinstance(sec_session, dict):
+                    continue
+                kept = {
+                    k: copy.deepcopy(v) for k, v in sec_session.items()
+                    if k not in stable_keys[subj_name][section]
+                }
+                if kept:
+                    out[section] = kept
+                    had_extras = True
+                    n_total_lifted_keys += len(kept)
+            if had_extras:
+                n_with_extra += 1
+            new_entries.append(out)
+        new_lists[list_name] = new_entries
+
+    return subjects, new_lists, {
+        "n_subjects":          len(subjects),
+        "n_sessions":          n_sessions,
+        "n_with_extra":        n_with_extra,
+        "n_total_lifted_keys": n_total_lifted_keys,
+    }
+
+
 def convert(
     matlab_path:     str,
     json_path:       str,
     *,
     neurobox_names:  bool = False,
     source_id:       str  = "sirotaA",
+    lift_subjects:   bool = False,
 ) -> None:
     src = Path(matlab_path).read_text(encoding="utf-8", errors="replace")
 
@@ -441,13 +589,27 @@ def convert(
         print(f"Translated {n_changed} sessionName values to neurobox "
               f"4-part naming (source_id={source_id!r}).")
 
+    output: dict = {"lists": lists}
+    if lift_subjects:
+        subjects, lists2, stats = _lift_subjects(lists)
+        print(
+            f"Lifted {stats['n_subjects']} subjects; "
+            f"{stats['n_with_extra']}/{stats['n_sessions']} sessions "
+            f"have session-specific overrides "
+            f"({stats['n_total_lifted_keys']} keys total)."
+        )
+        output = {"subjects": subjects, "lists": lists2}
+
     out = Path(json_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"lists": lists}, indent=2, ensure_ascii=False),
-                   encoding="utf-8")
+    out.write_text(
+        json.dumps(output, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
-    total = sum(len(v) for v in lists.values())
-    print(f"\nWrote {len(lists)} lists, {total} sessions → {out}")
+    total = sum(len(v) for v in output.get("lists", {}).values())
+    print(f"\nWrote {len(output.get('lists', {}))} lists, "
+          f"{total} sessions → {out}")
 
 
 def _cli_main() -> None:
@@ -471,22 +633,30 @@ def _cli_main() -> None:
         help="Source identifier to use as the first component when "
              "translating to neurobox naming",
     )
+    p.add_argument(
+        "--lift-subjects",
+        action="store_true",
+        help="Extract per-subject constants (correction, channelGroup, "
+             "anatLoc) into a top-level 'subjects' dict.  Per-session "
+             "overrides become top-level fields on the session entry.",
+    )
     args = p.parse_args()
     convert(
         args.matlab_file, args.output_json,
         neurobox_names = args.neurobox_names,
         source_id      = args.source_id,
+        lift_subjects  = args.lift_subjects,
     )
 
 
 if __name__ == "__main__":
     # Lightweight legacy invocation:  convert <in> <out>
     # Full CLI:                       see _cli_main()
-    if "--neurobox-names" in sys.argv or "--source-id" in " ".join(sys.argv):
+    if any(arg.startswith("--") for arg in sys.argv[1:]):
         _cli_main()
     elif len(sys.argv) < 3:
         print(f"Usage: {sys.argv[0]} <get_session_list_v3.m> <output.json> "
-              f"[--neurobox-names] [--source-id NAME]")
+              f"[--neurobox-names] [--source-id NAME] [--lift-subjects]")
         sys.exit(1)
     else:
         convert(sys.argv[1], sys.argv[2])

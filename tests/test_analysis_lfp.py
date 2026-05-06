@@ -376,13 +376,28 @@ class TestDetectOscillations:
 
 class TestWithinRangesEngine:
     """Tests that exercise the Cython sweep-line engine directly and
-    verify it agrees with the Python fallback on randomised inputs."""
+    verify it agrees with a brute-force reference on randomised inputs."""
 
-    def test_engine_matches_fallback_random(self):
+    @staticmethod
+    def _bruteforce_within_ranges_matrix(
+        x:        np.ndarray,
+        starts:   np.ndarray,
+        stops:    np.ndarray,
+        labels_zb: np.ndarray,
+        n_labels: int,
+    ) -> np.ndarray:
+        """O(N·M) reference — for each (point, label) check membership
+        directly.  Slow but unambiguous, and independent of the
+        sweep-line engine being tested."""
+        out = np.zeros((x.size, n_labels), dtype=bool)
+        for r in range(starts.size):
+            lab = labels_zb[r]
+            in_range = (x >= starts[r]) & (x <= stops[r])
+            out[:, lab] |= in_range
+        return out
+
+    def test_engine_matches_bruteforce_random(self):
         from neurobox.analysis.lfp import within_ranges
-        from neurobox.analysis.lfp._within_ranges_python_fallback import (
-            within_ranges_matrix_engine_python,
-        )
         rng = np.random.RandomState(42)
         for trial in range(10):
             n_pts    = rng.randint(50, 2_000)
@@ -397,11 +412,11 @@ class TestWithinRangesEngine:
             labels = np.repeat(np.arange(1, n_labels + 1), n_per_lab)
 
             out_c = within_ranges(x, edges, range_label=labels, mode="matrix")
-            out_p = within_ranges_matrix_engine_python(
-                x, edges[:, 0], edges[:, 1], labels - 1, n_labels
-            ).astype(bool)
-            assert np.array_equal(out_c, out_p), (
-                f"trial {trial}: cython kernel disagrees with fallback "
+            out_ref = self._bruteforce_within_ranges_matrix(
+                x, edges[:, 0], edges[:, 1], labels - 1, n_labels,
+            )
+            assert np.array_equal(out_c, out_ref), (
+                f"trial {trial}: cython kernel disagrees with brute force "
                 f"(n_pts={n_pts}, n_labels={n_labels})"
             )
 
@@ -426,6 +441,7 @@ class TestWithinRangesEngine:
         np.testing.assert_array_equal(out[:, 0], [True, True, True])
 
     def test_engine_dispatch_flag_present(self):
-        """The dispatch flag is a public hook for users to check at runtime."""
+        """The dispatch flag is kept for diagnostic purposes — it's
+        always ``True`` now that Cython is a hard build dependency."""
         from neurobox.analysis.lfp.oscillations import _WR_USING_CYTHON
-        assert isinstance(_WR_USING_CYTHON, bool)
+        assert _WR_USING_CYTHON is True

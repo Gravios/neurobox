@@ -7,7 +7,9 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import matplotlib
+# matplotlib is an OPTIONAL dependency (extras: [viz]); skip the
+# entire module gracefully if it isn't installed.
+matplotlib = pytest.importorskip("matplotlib", exc_type=ImportError)
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt          # noqa: E402
 

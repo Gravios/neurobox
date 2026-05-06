@@ -9,7 +9,9 @@ import warnings
 import numpy as np
 import pytest
 
-import matplotlib
+# matplotlib is an OPTIONAL dependency (extras: [viz]); skip the
+# entire module gracefully if it isn't installed.
+matplotlib = pytest.importorskip("matplotlib", exc_type=ImportError)
 matplotlib.use("Agg")
 
 from neurobox.dtype import (        # noqa: E402

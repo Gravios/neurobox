@@ -525,3 +525,117 @@ class TestHelpers:
         import types
         s = types.SimpleNamespace(spath=tmp_path, paths=None, name="session")
         assert _find_file(s, "missing.yaml") is None
+
+
+# ── sync_ephys_vicon (alias for sync_nlx_vicon) ─────────────────────────── #
+
+class TestSyncEphysVicon:
+    """Tests for the generic-ephys entry point.
+
+    ``sync_ephys_vicon`` is currently a thin alias for
+    :func:`sync_nlx_vicon` — same code path, different name.  These
+    tests verify the alias is wired up correctly and reaches the
+    same end state on the same fake-session fixture used by
+    :class:`TestSyncNlxVicon`.
+    """
+
+    @pytest.fixture
+    def fake_session(self, tmp_path):
+        """Reuse the TestSyncNlxVicon fixture so we exercise the
+        same synthetic data."""
+        inst = TestSyncNlxVicon()
+        gen = inst.fake_session.__wrapped__(inst, tmp_path)
+        if hasattr(gen, "__next__"):
+            return next(gen)
+        return gen
+
+    def test_runs_without_error(self, fake_session):
+        from neurobox.dtype.sync_pipelines import sync_ephys_vicon
+        session, _mock_writes = fake_session
+        sync_ephys_vicon(
+            session, ttl_value="0x0040", stop_ttl="0x0000",
+            xyz_samplerate=120.0, save_xyz=False,
+        )
+        # Same post-conditions as TestSyncNlxVicon.test_populates_session
+        assert session.window is not None
+        assert not session.window.is_empty
+        assert session.xyz is not None
+        assert session.xyz.data.size > 0
+
+    def test_matches_sync_nlx_vicon(self, tmp_path):
+        """The wrapper should produce byte-identical xyz arrays to
+        the underlying ``sync_nlx_vicon`` on the same input."""
+        from neurobox.dtype.sync_pipelines import (
+            sync_nlx_vicon, sync_ephys_vicon,
+        )
+
+        # Build two independent fake-session fixtures (the fixture
+        # mutates session state, so we need two separate copies).
+        inst1 = TestSyncNlxVicon()
+        gen1 = inst1.fake_session.__wrapped__(inst1, tmp_path / "a")
+        ses_a, _ = next(gen1) if hasattr(gen1, "__next__") else gen1
+
+        inst2 = TestSyncNlxVicon()
+        gen2 = inst2.fake_session.__wrapped__(inst2, tmp_path / "b")
+        ses_b, _ = next(gen2) if hasattr(gen2, "__next__") else gen2
+
+        sync_nlx_vicon(ses_a, ttl_value="0x0040", stop_ttl="0x0000",
+                        xyz_samplerate=120.0, save_xyz=False)
+        sync_ephys_vicon(ses_b, ttl_value="0x0040", stop_ttl="0x0000",
+                          xyz_samplerate=120.0, save_xyz=False)
+
+        np.testing.assert_array_equal(ses_a.xyz.data, ses_b.xyz.data)
+        assert ses_a.window.t_start == ses_b.window.t_start
+        assert ses_a.window.t_stop  == ses_b.window.t_stop
+
+
+class TestDispatchEphysAlias:
+    """Verify the dispatcher routes ``['ephys', 'vicon']`` to the
+    sync_ephys_vicon entry, and ``['nlx', 'vicon']`` still goes
+    direct to sync_nlx_vicon."""
+
+    def test_dispatch_routes_ephys(self, monkeypatch):
+        from neurobox.dtype import sync_pipelines
+        called = {}
+        def _fake_ephys(session, **kw):
+            called["which"] = "ephys"
+            called["kw"]    = kw
+        def _fake_nlx(session, **kw):
+            called["which"] = "nlx"
+            called["kw"]    = kw
+        monkeypatch.setattr(sync_pipelines, "sync_ephys_vicon", _fake_ephys)
+        monkeypatch.setattr(sync_pipelines, "sync_nlx_vicon",   _fake_nlx)
+        # Re-build the pipeline map under monkeypatch, to pick up the
+        # patched callables.  (The list captured them by reference at
+        # module import time.)
+        monkeypatch.setattr(sync_pipelines, "_PIPELINE_MAP", [
+            (("nlx", "neuralynx"), ("vicon", "optitrack", "motive"), _fake_nlx),
+            (("ephys",),           ("vicon", "optitrack", "motive"), _fake_ephys),
+        ])
+
+        sync_pipelines.dispatch(object(), ["ephys", "vicon"])
+        assert called["which"] == "ephys"
+
+        called.clear()
+        sync_pipelines.dispatch(object(), ["nlx", "vicon"])
+        assert called["which"] == "nlx"
+
+    def test_dispatch_unknown_lists_ephys_in_error(self):
+        from neurobox.dtype.sync_pipelines import dispatch
+        with pytest.raises(ValueError, match="ephys"):
+            dispatch(object(), ["unknown", "vicon"])
+
+
+class TestSyncEphysViconReExport:
+    """The wrapper should be reachable through the canonical
+    ``neurobox.utils.sync`` re-export, mirroring ``sync_nlx_vicon``."""
+
+    def test_importable_from_utils(self):
+        from neurobox.utils.sync import sync_ephys_vicon, sync_nlx_vicon
+        # Both should be plain callables
+        assert callable(sync_ephys_vicon)
+        assert callable(sync_nlx_vicon)
+
+    def test_is_in_all(self):
+        import neurobox.utils.sync as us
+        assert "sync_ephys_vicon" in us.__all__
