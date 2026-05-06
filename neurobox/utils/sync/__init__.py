@@ -12,6 +12,7 @@ import path.
 from neurobox.dtype.sync_pipelines import (
     dispatch,
     sync_nlx_vicon,
+    sync_ephys_vicon,
     sync_nlx_spots,
     sync_nlx_whl,
     sync_openephys_optitrack,
@@ -21,6 +22,7 @@ from neurobox.dtype.sync_pipelines import (
 __all__ = [
     "dispatch",
     "sync_nlx_vicon",
+    "sync_ephys_vicon",
     "sync_nlx_spots",
     "sync_nlx_whl",
     "sync_openephys_optitrack",

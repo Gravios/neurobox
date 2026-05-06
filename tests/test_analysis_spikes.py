@@ -50,25 +50,23 @@ def _ccg_reference(times, clu, bin_size, half_bins, n_groups):
 # Kernel parametrisation                                                       #
 # ─────────────────────────────────────────────────────────────────────────── #
 
+# Kernel parametrisation                                                       #
+# ─────────────────────────────────────────────────────────────────────────── #
+
 def _get_kernels():
-    """Yield (label, counts_fn, pairs_fn) for every available kernel."""
-    kernels: list[tuple[str, callable, callable]] = []
-    # Pure-Python fallback always available
-    from neurobox.analysis.spikes._ccg_python_fallback import (
-        compute_ccg_counts as py_counts,
-        compute_ccg_counts_with_pairs as py_pairs,
+    """Yield (label, counts_fn, pairs_fn) for the Cython kernel.
+
+    The pure-Python fallback was removed when Cython became a hard
+    build dependency.  The list-of-kernels structure is kept so the
+    parametrised tests still run; we just have one entry instead of
+    two.  If a future kernel variant lands (e.g. a SIMD-tuned one),
+    add it here.
+    """
+    from neurobox.analysis.spikes._ccg_engine import (
+        compute_ccg_counts as cy_counts,
+        compute_ccg_counts_with_pairs as cy_pairs,
     )
-    kernels.append(("python", py_counts, py_pairs))
-    # Cython if compiled
-    try:
-        from neurobox.analysis.spikes._ccg_engine import (
-            compute_ccg_counts as cy_counts,
-            compute_ccg_counts_with_pairs as cy_pairs,
-        )
-        kernels.append(("cython", cy_counts, cy_pairs))
-    except ImportError:
-        pass
-    return kernels
+    return [("cython", cy_counts, cy_pairs)]
 
 
 KERNELS = _get_kernels()

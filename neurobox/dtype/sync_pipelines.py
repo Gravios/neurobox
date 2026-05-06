@@ -11,6 +11,7 @@ Secondary = the behavioural / position tracking system.
 Primary systems
 ---------------
 ``nlx``        Neuralynx — sync via ``.all.evt`` TTL events
+``ephys``      Generic ephys — alias for nlx (unified neurobox layout)
 ``openephys``  Open Ephys — sync via a dedicated ADC pulse channel in ``.lfp``
 
 Secondary systems
@@ -679,6 +680,60 @@ def sync_nlx_vicon(
 
 
 # ---------------------------------------------------------------------------
+# sync_ephys_vicon  (generic ephys primary, Vicon secondary)
+# ---------------------------------------------------------------------------
+
+def sync_ephys_vicon(
+    session,
+    ttl_value:      str   = "0x0040",
+    stop_ttl:       str   = "0x0000",
+    xyz_samplerate: float | None = None,
+    tolerance_sec:  float = 0.2,
+    save_xyz:       bool  = True,
+) -> None:
+    """Synchronise generic ephys data with Vicon / Optitrack position.
+
+    Port of MATLAB ``utilities/sync/sync_ephys_vicon.m``.
+
+    The MATLAB function was structurally identical to
+    ``sync_nlx_vicon.m`` — the only difference was where it looked
+    for the event file: ``<project>/ephys/<session>/`` instead of
+    ``<project>/nlx/<session>/``.  In neurobox the layout is unified
+    (``.evt`` always lives under ``processed/ephys/`` and is searched
+    by :func:`_find_file`), so this entry point is a thin alias for
+    :func:`sync_nlx_vicon` rather than a separate implementation.
+
+    Use this name when:
+
+    * Calling code wants to be explicit that the ephys data wasn't
+      acquired with Neuralynx (e.g. converted from OpenEphys to a
+      common format with a Klusta-style ``.all.evt``).
+    * Going through the dispatcher with
+      ``data_loggers=['ephys', 'vicon']``.
+
+    The keyword arguments and behaviour are identical to
+    :func:`sync_nlx_vicon`; see that function for parameter
+    documentation.
+
+    Notes
+    -----
+    If/when ephys-specific behaviour diverges from NLX-specific
+    behaviour (e.g. a different event-file format, or an ephys
+    pipeline that doesn't write ``.all.evt`` at all), the body of
+    this wrapper is the natural place to add the divergent logic.
+    For now it preserves an exact functional equivalence.
+    """
+    sync_nlx_vicon(
+        session,
+        ttl_value      = ttl_value,
+        stop_ttl       = stop_ttl,
+        xyz_samplerate = xyz_samplerate,
+        tolerance_sec  = tolerance_sec,
+        save_xyz       = save_xyz,
+    )
+
+
+# ---------------------------------------------------------------------------
 # sync_nlx_spots  (NLX primary, 2-LED spot tracker)
 # ---------------------------------------------------------------------------
 
@@ -923,6 +978,11 @@ _PIPELINE_MAP: list[tuple[tuple[str, ...], tuple[str, ...], object]] = [
     (("nlx", "neuralynx"),    ("vicon", "optitrack", "motive"), sync_nlx_vicon),
     (("nlx", "neuralynx"),    ("spots",),              sync_nlx_spots),
     (("nlx", "neuralynx"),    ("whl",),                sync_nlx_whl),
+    # Generic ephys entry — same code path as nlx_vicon (see
+    # sync_ephys_vicon docstring).  Listed AFTER the nlx-specific
+    # entries so e.g. data_loggers=['nlx', 'vicon'] still binds to
+    # sync_nlx_vicon directly rather than going through the wrapper.
+    (("ephys",),              ("vicon", "optitrack", "motive"), sync_ephys_vicon),
 ]
 
 
@@ -951,6 +1011,6 @@ def dispatch(session, data_loggers: list[str], **kwargs) -> None:
 
     raise ValueError(
         f"No sync pipeline for data_loggers={data_loggers!r}.\n"
-        "Supported primaries  : nlx, neuralynx, openephys, oephys\n"
+        "Supported primaries  : nlx, neuralynx, ephys, openephys, oephys\n"
         "Supported secondaries: vicon, optitrack, motive, spots, whl"
     )

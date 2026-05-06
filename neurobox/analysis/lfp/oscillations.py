@@ -38,15 +38,19 @@ import numpy as np
 
 from .filtering import butter_filter
 
-# Try the compiled within_ranges kernel first; fall back to pure numpy.
-# The Cython kernel is markedly faster at large ``n_labels`` (>= 100).
+# Compiled within_ranges kernel.  Cython is a hard build dependency,
+# so the import always succeeds in a properly-installed environment.
 try:
     from ._within_ranges_engine import within_ranges_matrix_engine as _wr_matrix_c
-    _WR_USING_CYTHON = True
-except ImportError:                                              # pragma: no cover
-    _wr_matrix_c = None
-    _WR_USING_CYTHON = False
-from ._within_ranges_python_fallback import within_ranges_matrix_engine_python
+except ImportError as exc:                                       # pragma: no cover
+    raise ImportError(
+        "neurobox.analysis.lfp._within_ranges_engine is not available — "
+        "the Cython extension wasn't built.  Reinstall with "
+        "`pip install -e .` (or `pip install .`) to rebuild it."
+    ) from exc
+
+# Kept for diagnostic / introspection purposes only.
+_WR_USING_CYTHON = True
 
 
 def _within_ranges_matrix_dispatch(
@@ -56,7 +60,7 @@ def _within_ranges_matrix_dispatch(
     range_label_zero_based: np.ndarray,
     n_labels: int,
 ) -> np.ndarray:
-    """Compute the matrix-mode boolean output via the fastest available engine.
+    """Compute the matrix-mode boolean output via the Cython engine.
 
     Used internally by :func:`within_ranges`.
 
@@ -65,46 +69,41 @@ def _within_ranges_matrix_dispatch(
     point → stop order (this realises the labbox inclusive-on-both-ends
     semantics).
     """
-    if _WR_USING_CYTHON:
-        # Build merged event stream: starts (kind=0), points (kind=1), stops (kind=2)
-        n_pts    = x.size
-        n_ranges = starts.size
-        n_events = 2 * n_ranges + n_pts
-        event_time  = np.empty(n_events, dtype=np.float64)
-        event_kind  = np.empty(n_events, dtype=np.int64)
-        event_label = np.empty(n_events, dtype=np.int64)
-        event_pidx  = np.empty(n_events, dtype=np.int64)
+    # Build merged event stream: starts (kind=0), points (kind=1), stops (kind=2)
+    n_pts    = x.size
+    n_ranges = starts.size
+    n_events = 2 * n_ranges + n_pts
+    event_time  = np.empty(n_events, dtype=np.float64)
+    event_kind  = np.empty(n_events, dtype=np.int64)
+    event_label = np.empty(n_events, dtype=np.int64)
+    event_pidx  = np.empty(n_events, dtype=np.int64)
 
-        # Slice [0:n_ranges] = starts
-        event_time [:n_ranges] = starts
-        event_kind [:n_ranges] = 0
-        event_label[:n_ranges] = range_label_zero_based
-        event_pidx [:n_ranges] = -1
+    # Slice [0:n_ranges] = starts
+    event_time [:n_ranges] = starts
+    event_kind [:n_ranges] = 0
+    event_label[:n_ranges] = range_label_zero_based
+    event_pidx [:n_ranges] = -1
 
-        # Slice [n_ranges:n_ranges+n_pts] = points
-        event_time [n_ranges:n_ranges + n_pts] = x
-        event_kind [n_ranges:n_ranges + n_pts] = 1
-        event_label[n_ranges:n_ranges + n_pts] = -1
-        event_pidx [n_ranges:n_ranges + n_pts] = np.arange(n_pts, dtype=np.int64)
+    # Slice [n_ranges:n_ranges+n_pts] = points
+    event_time [n_ranges:n_ranges + n_pts] = x
+    event_kind [n_ranges:n_ranges + n_pts] = 1
+    event_label[n_ranges:n_ranges + n_pts] = -1
+    event_pidx [n_ranges:n_ranges + n_pts] = np.arange(n_pts, dtype=np.int64)
 
-        # Slice [n_ranges+n_pts:] = stops
-        event_time [n_ranges + n_pts:] = stops
-        event_kind [n_ranges + n_pts:] = 2
-        event_label[n_ranges + n_pts:] = range_label_zero_based
-        event_pidx [n_ranges + n_pts:] = -1
+    # Slice [n_ranges+n_pts:] = stops
+    event_time [n_ranges + n_pts:] = stops
+    event_kind [n_ranges + n_pts:] = 2
+    event_label[n_ranges + n_pts:] = range_label_zero_based
+    event_pidx [n_ranges + n_pts:] = -1
 
-        # Sort primarily by time, secondarily by kind (start < point < stop).
-        order = np.lexsort((event_kind, event_time))
-        event_kind  = np.ascontiguousarray(event_kind [order])
-        event_label = np.ascontiguousarray(event_label[order])
-        event_pidx  = np.ascontiguousarray(event_pidx [order])
+    # Sort primarily by time, secondarily by kind (start < point < stop).
+    order = np.lexsort((event_kind, event_time))
+    event_kind  = np.ascontiguousarray(event_kind [order])
+    event_label = np.ascontiguousarray(event_label[order])
+    event_pidx  = np.ascontiguousarray(event_pidx [order])
 
-        return _wr_matrix_c(event_kind, event_label, event_pidx,
-                            n_pts, n_labels)
-    else:
-        return within_ranges_matrix_engine_python(
-            x, starts, stops, range_label_zero_based, n_labels,
-        )
+    return _wr_matrix_c(event_kind, event_label, event_pidx,
+                        n_pts, n_labels)
 
 
 # ─────────────────────────────────────────────────────────────────────────── #

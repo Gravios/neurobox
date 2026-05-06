@@ -9,8 +9,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-# All viz tests need matplotlib but never an interactive backend
-import matplotlib
+# All viz tests need matplotlib but never an interactive backend.
+# matplotlib is an OPTIONAL dependency (extras: [viz]); skip the
+# entire module gracefully if it isn't installed.
+matplotlib = pytest.importorskip("matplotlib", exc_type=ImportError)
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt    # noqa: E402
 
