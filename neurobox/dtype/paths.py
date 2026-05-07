@@ -183,6 +183,95 @@ class NBSessionPaths:
         return self._hierarchy(self.data_root / "processed", "mocap") / self.maze
 
     # ------------------------------------------------------------------ #
+    # Subject-ID padding variants                                         #
+    # ------------------------------------------------------------------ #
+    #
+    # The MATLAB session-list convention uses compact subject IDs
+    # (``jg05`` → subject "05"), but the Sirota lab's processed-data
+    # tree uses zero-padded 6-digit forms (``sirotaA-jg-000005`` →
+    # subject "000005").  These helpers let us look up data on disk
+    # without baking either convention into the canonical session name.
+
+    def subject_id_padded(self, width: int = 6) -> str:
+        """``self.subject_id`` zero-padded to *width* digits."""
+        return self.subject_id.zfill(width)
+
+    def _hierarchy_for_subject(
+        self,
+        base:       Path,
+        type_id:    str,
+        subject_id: str,
+    ) -> Path:
+        """Like :meth:`_hierarchy` but with an explicit ``subject_id``.
+
+        When ``subject_id`` differs from ``self.subject_id``, the leaf
+        session-name component is rewritten to use it so the on-disk
+        directory ``sirotaA-jg-000005-20120316/`` can be reached from
+        a session whose canonical name is ``sirotaA-jg-05-20120316``.
+        """
+        u  = f"{self.source_id}-{self.user_id}"
+        us = f"{u}-{subject_id}"
+        if subject_id == self.subject_id:
+            leaf = self.session_name
+        else:
+            leaf = f"{self.source_id}-{self.user_id}-{subject_id}-{self.date}"
+        return base / type_id / self.source_id / u / us / leaf
+
+    def _resolve_existing(
+        self,
+        type_id:      str,
+        *,
+        with_maze:    bool = False,
+    ) -> Path:
+        """Return the canonical path for *type_id* under ``processed/``
+        if it exists; otherwise the 6-digit-padded variant if THAT
+        exists; otherwise the canonical path (for sensible error
+        messages).
+        """
+        base = self.data_root / "processed"
+        canonical = self._hierarchy(base, type_id)
+        if with_maze:
+            canonical = canonical / self.maze
+        if canonical.exists():
+            return canonical
+        padded_subj = self.subject_id_padded()
+        if padded_subj != self.subject_id:
+            padded = self._hierarchy_for_subject(base, type_id, padded_subj)
+            if with_maze:
+                padded = padded / self.maze
+            if padded.exists():
+                return padded
+        return canonical
+
+    def resolve_processed_ephys(self) -> Path:
+        """Return the on-disk processed-ephys directory.
+
+        Tries the canonical (compact subject-ID) path first, then the
+        6-digit zero-padded variant.  Falls back to the canonical
+        path if neither exists, so error messages still print the
+        path the caller would expect.
+        """
+        return self._resolve_existing("ephys")
+
+    def resolve_processed_mocap(self) -> Path:
+        """Return the on-disk processed-mocap maze directory.
+
+        Same canonical → padded resolution as
+        :meth:`resolve_processed_ephys`.
+        """
+        return self._resolve_existing("mocap", with_maze=True)
+
+    def resolve_processed_mocap_session(self) -> Path:
+        """Return the on-disk processed-mocap *session* directory
+        (parent of all maze subdirectories).
+
+        Useful for maze-discovery — scan the returned directory's
+        children to enumerate available mazes.  Same canonical →
+        padded resolution as :meth:`resolve_processed_ephys`.
+        """
+        return self._resolve_existing("mocap")
+
+    # ------------------------------------------------------------------ #
     # Source data directories                                             #
     # ------------------------------------------------------------------ #
 
