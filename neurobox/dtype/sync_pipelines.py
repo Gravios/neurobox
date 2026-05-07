@@ -84,10 +84,22 @@ def _has_paths(session) -> bool:
 
 
 def _find_file(session, filename: str) -> Path | None:
-    """Find *filename* in spath or processed_ephys, return first hit."""
+    """Find *filename* in spath or processed_ephys, return first hit.
+
+    Also checks the 6-digit-padded subject-ID variant of
+    ``processed_ephys``, so the function works even when the on-disk
+    layout uses a different subject-ID padding from the session name.
+    """
     candidates: list[Path] = [session.spath / filename]
     if _has_paths(session):
-        candidates.append(session.paths.processed_ephys / filename)
+        # resolve_processed_ephys returns the canonical or padded
+        # variant depending on which exists on disk
+        candidates.append(session.paths.resolve_processed_ephys() / filename)
+        # Also try the canonical even if resolve returned padded, in
+        # case the file lives under one but not the other
+        canonical = session.paths.processed_ephys / filename
+        if canonical not in candidates:
+            candidates.append(canonical)
     for p in candidates:
         if p.exists():
             return p

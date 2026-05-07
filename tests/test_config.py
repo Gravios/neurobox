@@ -326,3 +326,137 @@ def test_status_reports_analysis_files(project_tree):
 
     report = link_session_status(name, "B01", data_root=root, mazes=mazes)
     assert f"{name}.cof.all.ses.pkl" in report["analysis"]
+
+
+# ── Subject-ID padding (compact session name → padded on-disk layout) ──── #
+
+@pytest.fixture
+def padded_subject_tree(tmp_path):
+    """Layout where subject IDs are 6-digit zero-padded on disk
+    (``sirotaA-jg-000005``) but the canonical session name uses the
+    compact form (``sirotaA-jg-05-20120316``)."""
+    name        = "sirotaA-jg-05-20120316"   # compact (canonical)
+    on_disk     = "sirotaA-jg-000005-20120316"   # padded
+    src_id      = "sirotaA"
+    u           = f"{src_id}-jg"
+    us_padded   = f"{u}-000005"
+
+    eph = tmp_path / "processed" / "ephys" / src_id / u / us_padded / on_disk
+    eph.mkdir(parents=True)
+    (eph / f"{on_disk}.yaml").write_text(
+        "acquisitionSystem:\n  nChannels: 32\n  samplingRate: 20000\n"
+    )
+    (eph / f"{on_disk}.lfp").write_bytes(b"\x00" * 16)
+
+    for maze in ("cof", "nor"):
+        moc = tmp_path / "processed" / "mocap" / src_id / u / us_padded / on_disk / maze
+        moc.mkdir(parents=True)
+        (moc / f"{on_disk}.Trial001.mat").write_bytes(b"\x00" * 4)
+
+    return tmp_path, name, on_disk
+
+
+class TestPaddedSubjectResolution:
+    """Verify NBSessionPaths resolves both compact and padded
+    subject-ID directory layouts."""
+
+    def test_subject_id_padded_pads_short(self):
+        from neurobox.dtype.paths import NBSessionPaths
+        p = NBSessionPaths("sirotaA-jg-05-20120316", Path("/x"), "B01")
+        assert p.subject_id == "05"
+        assert p.subject_id_padded() == "000005"
+        assert p.subject_id_padded(width=4) == "0005"
+
+    def test_subject_id_padded_passthrough_when_already_padded(self):
+        from neurobox.dtype.paths import NBSessionPaths
+        p = NBSessionPaths("sirotaA-jg-000005-20120316", Path("/x"), "B01")
+        assert p.subject_id == "000005"
+        assert p.subject_id_padded() == "000005"
+
+    def test_resolve_returns_canonical_when_only_canonical_exists(
+        self, project_tree,
+    ):
+        from neurobox.dtype.paths import NBSessionPaths
+        root, sessions = project_tree
+        name = sessions[0][0]
+        p = NBSessionPaths(name, root, "B01", maze="cof")
+        assert p.resolve_processed_ephys() == p.processed_ephys
+        assert p.resolve_processed_ephys().exists()
+        assert p.resolve_processed_mocap() == p.processed_mocap
+
+    def test_resolve_returns_padded_when_only_padded_exists(
+        self, padded_subject_tree,
+    ):
+        from neurobox.dtype.paths import NBSessionPaths
+        root, name, on_disk = padded_subject_tree
+        p = NBSessionPaths(name, root, "B01", maze="cof")
+        # Canonical doesn't exist
+        assert not p.processed_ephys.exists()
+        # But resolver finds the padded layout
+        resolved = p.resolve_processed_ephys()
+        assert resolved.exists()
+        assert "sirotaA-jg-000005" in str(resolved)
+        assert on_disk in str(resolved)
+
+    def test_resolve_falls_back_to_canonical_when_neither_exists(
+        self, tmp_path,
+    ):
+        from neurobox.dtype.paths import NBSessionPaths
+        p = NBSessionPaths("sirotaA-jg-05-20120316", tmp_path, "B01", "cof")
+        # Nothing on disk at all
+        assert p.resolve_processed_ephys() == p.processed_ephys
+        assert p.resolve_processed_mocap() == p.processed_mocap
+
+    def test_resolve_processed_mocap_session_finds_padded(
+        self, padded_subject_tree,
+    ):
+        from neurobox.dtype.paths import NBSessionPaths
+        root, name, on_disk = padded_subject_tree
+        p = NBSessionPaths(name, root, "B01", maze="cof")
+        sess_dir = p.resolve_processed_mocap_session()
+        assert sess_dir.exists()
+        assert sorted(d.name for d in sess_dir.iterdir() if d.is_dir()) == \
+            ["cof", "nor"]
+
+
+class TestLinkSessionPaddedSubject:
+    """End-to-end: compact session name + padded on-disk layout."""
+
+    def test_discover_mazes_finds_padded_layout(self, padded_subject_tree):
+        from neurobox.config import discover_mazes
+        root, name, _ = padded_subject_tree
+        assert discover_mazes(name, root, "B01") == ["cof", "nor"]
+
+    def test_link_session_symlinks_from_padded_dirs(self, padded_subject_tree):
+        from neurobox.config import link_session
+        root, name, on_disk = padded_subject_tree
+        paths = link_session(name, "B01", data_root=root)
+
+        # spath uses the compact (canonical) name
+        assert paths.spath.name == name
+
+        # but symlinks point at the padded source files
+        lfp_link = paths.spath / f"{on_disk}.lfp"
+        assert lfp_link.is_symlink()
+        target = lfp_link.readlink()
+        assert "sirotaA-jg-000005" in str(target)
+
+        # both maze subdirs got linked
+        for maze in ("cof", "nor"):
+            mat_link = paths.spath / maze / f"{on_disk}.Trial001.mat"
+            assert mat_link.is_symlink()
+            assert "sirotaA-jg-000005" in str(mat_link.readlink())
+
+    def test_link_session_does_not_break_compact_layout(self, project_tree):
+        """Existing compact-only layouts should still work unchanged."""
+        from neurobox.config import link_session
+        root, sessions = project_tree
+        name, _ = sessions[0]
+        paths = link_session(name, "B01", data_root=root)
+        # symlinks point at the compact (non-padded) source
+        lfp_link = paths.spath / f"{name}.lfp"
+        assert lfp_link.is_symlink()
+        target = lfp_link.readlink()
+        # Should NOT contain the padded form
+        assert "sirotaA-jg-000005" not in str(target)
+        assert "sirotaA-jg-05" in str(target)

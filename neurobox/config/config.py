@@ -166,8 +166,9 @@ def discover_mazes(
         project_id   = project_id or "_discover",
         maze         = "_discover",
     )
-    # processed_mocap includes the maze subdir; the parent is the session dir
-    mocap_session_dir = paths.processed_mocap.parent
+    # Use the session-level mocap resolver (no maze appended) so it
+    # also handles 6-digit-padded subject-ID layouts.
+    mocap_session_dir = paths.resolve_processed_mocap_session()
 
     if not mocap_session_dir.exists():
         return []
@@ -325,8 +326,11 @@ def link_session(
         _log(f"mkdir  {paths.spath}", dry_run=True)
 
     # ── Link ephys files (flat into spath) ─────────────────────────────── #
+    src_ephys = paths.resolve_processed_ephys()
+    if verbose and src_ephys != paths.processed_ephys:
+        print(f"  using padded-subject ephys path: {src_ephys}")
     ln, rp, sk = _link_dir(
-        src_dir  = paths.processed_ephys,
+        src_dir  = src_ephys,
         dst_dir  = paths.spath,
         overwrite = overwrite,
         dry_run  = dry_run,
@@ -344,8 +348,11 @@ def link_session(
             project_id   = project_id,
             maze         = maze,
         )
+        src_mocap = paths_m.resolve_processed_mocap()
+        if verbose and src_mocap != paths_m.processed_mocap:
+            print(f"  using padded-subject mocap path: {src_mocap}")
         ln, rp, sk = _link_dir(
-            src_dir  = paths_m.processed_mocap,
+            src_dir  = src_mocap,
             dst_dir  = paths.spath / maze,
             overwrite = overwrite,
             dry_run  = dry_run,
