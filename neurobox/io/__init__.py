@@ -22,10 +22,31 @@ Spike times (.res.N / .clu.N — binary, neurosuite-3)::
     res, clu, shank_map = load_clu_res("session", as_seconds=True)
     spikes = spikes_by_unit(res, clu)          # dict[unit_id → times]
 
-Spike waveforms (.spk.N)::
+Spike waveforms (.spk[.method].N)::
 
     from neurobox.io import load_spk, load_spk_from_par
     wf = load_spk_from_par("session", shank=1)  # (n_spikes, n_samp, n_ch)
+    # .spk is Shared under neurosuite-3 naming — falls back to legacy names
+
+Spike features (.fet.<method>.N — binary, neurosuite-3)::
+
+    from neurobox.io import load_fet
+    fet = load_fet("session.fet.standard.1")  # FetData(features, timestamps, n_dimensions)
+
+PCA basis (.pca.<method>.N — binary, neurosuite-3)::
+
+    from neurobox.io import load_pca
+    basis = load_pca("session.pca.standard.1", n_samples=32)   # PcaBasis(means, eigenvectors, ...)
+
+Hierarchical clustering siblings (.clc.<method>.N / .clp.<method>.N)::
+
+    from neurobox.io import (
+        load_clc, load_clp, build_atom_to_fiber, build_fiber_to_atoms,
+    )
+    atoms    = load_clc("session.clc.standard.1")               # per-spike atom IDs
+    clp_map  = load_clp("session.clp.standard.1")               # (parent_of, header)
+    a_to_f   = build_atom_to_fiber(clp_map)                     # dict[atom_id → fiber_id]
+    f_to_as  = build_fiber_to_atoms(clp_map)                    # dict[fiber_id → [atom_ids]]
 
 Event files (.evt)::
 
@@ -67,6 +88,12 @@ from .load_yaml                import load_yaml, get_channel_groups, get_lfp_sam
 from .load_binary              import load_binary
 from .load_clu_res             import load_clu_res, spikes_by_unit
 from .load_spk                 import load_spk, load_spk_from_par
+from .load_fet                 import load_fet, FetData
+from .load_pca                 import load_pca, PcaBasis
+from .load_clc_clp             import (
+    load_clc, load_clp, ClpMap,
+    build_atom_to_fiber, build_fiber_to_atoms,
+)
 from .load_evt                 import load_evt, evt_to_periods
 from .parse_events             import parse_nlx_events
 from .parse_events             import mocap_events as sync
@@ -93,6 +120,17 @@ __all__ = [
     # Waveforms
     "load_spk",
     "load_spk_from_par",
+    # PCA features + basis (neurosuite-3)
+    "load_fet",
+    "FetData",
+    "load_pca",
+    "PcaBasis",
+    # Hierarchical clustering siblings
+    "load_clc",
+    "load_clp",
+    "ClpMap",
+    "build_atom_to_fiber",
+    "build_fiber_to_atoms",
     # Events
     "load_evt",
     "evt_to_periods",
