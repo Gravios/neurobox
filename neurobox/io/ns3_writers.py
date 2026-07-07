@@ -62,6 +62,10 @@ __all__ = [
     "save_spk",
     "save_fet",
     "save_pca",
+    "save_col",
+    "save_drift",
+    "save_loc",
+    "save_chunks",
 ]
 
 
@@ -475,6 +479,263 @@ def save_pca(
         fh.write(header.tobytes())
         fh.write(means_le.tobytes())
         fh.write(evecs_le.tobytes())
+
+    _atomic_write(target, _write)
+    return target
+
+
+# ---------------------------------------------------------------------------
+# YAML writers (.col, .drift) and small binary/text writers (.loc, .chunks)
+# ---------------------------------------------------------------------------
+#
+# YAML output uses ``yaml.safe_dump`` with ``sort_keys=False`` to preserve
+# the field order shown in the neurosuite-3 spec files, and
+# ``default_flow_style=False`` so top-level keys are laid out block-style
+# (matching the spec examples).  Small inline dicts like
+# ``{unit: 3, shift: -2, amplitude: 0.97}`` can be requested explicitly by
+# the caller.
+
+import yaml as _yaml  # deferred inside the module to keep the top of the
+                       # file focused on the numeric writers
+
+
+# ---------------------------------------------------------------------------
+# .col.<method>.N  —  collision decomposition (YAML)
+# ---------------------------------------------------------------------------
+
+def save_col(
+    path:         str | Path,
+    spikes:       list[dict],
+    spike_group:  int,
+    *,
+    format:       str  = "1.0",
+    overwrite:    bool = False,
+) -> Path:
+    """Write a ``.col`` collision-decomposition YAML file.
+
+    Layout (per ``col.md``)::
+
+        collisions:
+          format: '1.0'
+          spikeGroup: 1
+          spikes:
+            - spikeIndex: 4721
+              isCollision: true
+              components:
+                - unit: 3
+                  shift: -2
+                  amplitude: 0.97
+                - unit: 7
+                  shift: 8
+                  amplitude: 0.84
+
+    Parameters
+    ----------
+    path:
+        Destination.  Use :meth:`NBSessionPaths.col_file`.
+    spikes:
+        List of per-spike collision records.  Each element is a
+        dict with keys ``spikeIndex`` (int), ``isCollision`` (bool),
+        and ``components`` (a list of ``{unit, shift, amplitude}``
+        dicts).  The list is written verbatim under
+        ``collisions.spikes`` — the caller is responsible for the
+        schema.
+    spike_group:
+        1-based shank / spike-group index.  Written as
+        ``collisions.spikeGroup``.
+    format:
+        Format-version string.  Defaults to ``'1.0'``.
+    """
+    if not isinstance(spikes, list):
+        raise ValueError(
+            f"spikes must be a list, got {type(spikes).__name__}"
+        )
+    document = {
+        "collisions": {
+            "format":     str(format),
+            "spikeGroup": int(spike_group),
+            "spikes":     list(spikes),
+        }
+    }
+    target = _prepare(path, overwrite)
+    encoded = _yaml.safe_dump(
+        document,
+        sort_keys           = False,
+        default_flow_style  = False,
+        allow_unicode       = True,
+    ).encode("utf-8")
+
+    def _write(fh):
+        fh.write(encoded)
+
+    _atomic_write(target, _write)
+    return target
+
+
+# ---------------------------------------------------------------------------
+# .drift  —  session-level probe drift trajectories (YAML)
+# ---------------------------------------------------------------------------
+
+def save_drift(
+    path:        str | Path,
+    probes:      list[dict],
+    method:      str,
+    window_sec:  float,
+    *,
+    format:      str  = "1.0",
+    overwrite:   bool = False,
+) -> Path:
+    """Write the session-level ``.drift`` YAML file.
+
+    Layout (per ``drift.md``)::
+
+        drift:
+          format: '1.0'
+          method: unit_com
+          windowSec: 60.0
+          probes:
+            - probeId: 0
+              shanks:
+                - shankIndex: 0
+                  spikeGroup: 1
+                  nUnitsTotal: 8
+                  windows:
+                    - {t_start: 0.0,  t_end: 60.0,  drift_um: 0.0}
+                    - {t_start: 60.0, t_end: 120.0, drift_um: -1.8}
+
+    Parameters
+    ----------
+    path:
+        Destination.  Use :attr:`NBSessionPaths.drift_file`.
+        ``.drift`` is session-level, so there is no shank in the
+        filename.
+    probes:
+        List of probe records, each a dict with ``probeId`` and
+        ``shanks`` (a list of per-shank drift-window records).
+        Written verbatim under ``drift.probes``.
+    method:
+        Drift-estimation method label, e.g. ``'unit_com'``.
+    window_sec:
+        Time-window duration used when computing drift, in seconds.
+    format:
+        Format-version string.  Defaults to ``'1.0'``.
+    """
+    if not isinstance(probes, list):
+        raise ValueError(
+            f"probes must be a list, got {type(probes).__name__}"
+        )
+    document = {
+        "drift": {
+            "format":    str(format),
+            "method":    str(method),
+            "windowSec": float(window_sec),
+            "probes":    list(probes),
+        }
+    }
+    target = _prepare(path, overwrite)
+    encoded = _yaml.safe_dump(
+        document,
+        sort_keys          = False,
+        default_flow_style = False,
+        allow_unicode      = True,
+    ).encode("utf-8")
+
+    def _write(fh):
+        fh.write(encoded)
+
+    _atomic_write(target, _write)
+    return target
+
+
+# ---------------------------------------------------------------------------
+# .loc.N  —  per-spike source locations (5 float32 per spike, no header)
+# ---------------------------------------------------------------------------
+
+def save_loc(
+    path:      str | Path,
+    locations: np.ndarray,
+    *,
+    overwrite: bool = False,
+) -> Path:
+    """Write per-spike source locations to ``.loc.N``.
+
+    Layout: no header, one row per spike, 5 ``float32`` values per
+    row (``x_s``, ``y_s``, ``z_s``, ``A``, ``residual``).
+    File size = ``n_spikes × 20`` bytes.
+
+    Parameters
+    ----------
+    path:
+        Destination.  Use :meth:`NBSessionPaths.loc_file`.
+    locations:
+        Shape ``(n_spikes, 5)``, dtype coercible to ``float32``.
+
+    Raises
+    ------
+    ValueError
+        When *locations* isn't a 2-D array with exactly 5 columns.
+    """
+    arr = np.asarray(locations)
+    if arr.ndim != 2:
+        raise ValueError(
+            f"locations must be 2-D (n_spikes, 5), got shape {arr.shape}"
+        )
+    if arr.shape[1] != 5:
+        raise ValueError(
+            f"locations must have 5 columns (x_s, y_s, z_s, A, residual), "
+            f"got {arr.shape[1]}"
+        )
+    payload = _as_le(arr, "<f4")
+    target = _prepare(path, overwrite)
+    _atomic_write(target, lambda fh: fh.write(payload.tobytes()))
+    return target
+
+
+# ---------------------------------------------------------------------------
+# .chunks.N  —  adaptive KiloKlustaKwik chunk boundaries (text)
+# ---------------------------------------------------------------------------
+
+def save_chunks(
+    path:      str | Path,
+    chunks:    np.ndarray,
+    *,
+    overwrite: bool = False,
+) -> Path:
+    """Write chunk boundaries to a ``.chunks.N`` text file.
+
+    Layout: one chunk per line, ``start_sample end_sample`` (
+    integer, whitespace-separated).  No header.
+
+    Parameters
+    ----------
+    path:
+        Destination.  Use :meth:`NBSessionPaths.chunks_file`.
+    chunks:
+        Shape ``(n_chunks, 2)``.  Column 0 is ``start_sample``,
+        column 1 is ``end_sample``.  Non-integer input is coerced
+        to :class:`int64` (values silently truncated if fractional).
+        A 1-D length-2 array is treated as a single chunk.
+    """
+    arr = np.asarray(chunks)
+    if arr.ndim == 1:
+        if arr.size != 2:
+            raise ValueError(
+                f"chunks 1-D input must have length 2 "
+                f"(single [start, end]), got size {arr.size}"
+            )
+        arr = arr.reshape(1, 2)
+    if arr.ndim != 2 or arr.shape[1] != 2:
+        raise ValueError(
+            f"chunks must have shape (n_chunks, 2), got {arr.shape}"
+        )
+    payload = _as_le(arr, "<i8")     # coerce to int64 (LE for consistency)
+    target = _prepare(path, overwrite)
+    # Text file — newline-separated, one chunk per line.
+    lines = [f"{int(a)} {int(b)}\n" for a, b in payload]
+    encoded = "".join(lines).encode("ascii")
+
+    def _write(fh):
+        fh.write(encoded)
 
     _atomic_write(target, _write)
     return target
