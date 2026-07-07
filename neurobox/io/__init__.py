@@ -48,6 +48,21 @@ Hierarchical clustering siblings (.clc.<method>.N / .clp.<method>.N)::
     a_to_f   = build_atom_to_fiber(clp_map)                     # dict[atom_id → fiber_id]
     f_to_as  = build_fiber_to_atoms(clp_map)                    # dict[fiber_id → [atom_ids]]
 
+Writing neurosuite-3 files (byte-exact, round-trip with loaders)::
+
+    from neurobox.io import (
+        save_res, save_clu, save_clc, save_clp,
+        save_spk, save_fet, save_pca,
+    )
+    # Path naming lives in NBSessionPaths — pass the resolved path in:
+    save_fet(p.fet_file(1, method="stderiv"), features, timestamps)
+    save_pca(p.pca_file(1, method="stderiv"), means, eigenvectors)
+    save_spk(p.spk_file(1), waveforms)             # .spk is Shared — standard tag
+    save_clu(p.clu_ns3_file(1), cluster_ids)
+    save_clc(p.clc_file(1), atom_ids)
+    save_clp(p.clp_file(1), parent_of)
+    save_res(p.res_ns3_file(1), timestamps)
+
 Event files (.evt)::
 
     from neurobox.io import load_evt, evt_to_periods
@@ -94,6 +109,10 @@ from .load_clc_clp             import (
     load_clc, load_clp, ClpMap,
     build_atom_to_fiber, build_fiber_to_atoms,
 )
+from .ns3_writers              import (
+    save_res, save_clu, save_clc, save_clp,
+    save_spk, save_fet, save_pca,
+)
 from .load_evt                 import load_evt, evt_to_periods
 from .parse_events             import parse_nlx_events
 from .parse_events             import mocap_events as sync
@@ -131,6 +150,14 @@ __all__ = [
     "ClpMap",
     "build_atom_to_fiber",
     "build_fiber_to_atoms",
+    # Neurosuite-3 writers (round-trip with load_*)
+    "save_res",
+    "save_clu",
+    "save_clc",
+    "save_clp",
+    "save_spk",
+    "save_fet",
+    "save_pca",
     # Events
     "load_evt",
     "evt_to_periods",
