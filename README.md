@@ -191,7 +191,10 @@ active = stc["walk|rear"]         # union
 
 ```python
 # Neuralynx primary + Vicon/Optitrack secondary (event-based)
-session.create(["nlx", "vicon"], ttl_value="0x0040")
+session.create(["nlx", "vicon"], ttl_value="0x0040", stop_ttl="0x0000")
+
+# Generic ephys primary + Vicon (event-based; same code path as nlx)
+session.create(["ephys", "vicon"], ttl_value="0x0040")
 
 # Open Ephys primary + Optitrack secondary (pulse channel)
 session.create(["openephys", "optitrack"], sync_channel=17)
@@ -200,13 +203,22 @@ session.create(["openephys", "optitrack"], sync_channel=17)
 session.create(["nlx", "whl"])
 ```
 
+`data_loggers` selects the pipeline: `nlx` / `ephys` + `vicon` / `optitrack`
+/ `motive` use TTL events; `openephys` variants use an ADC pulse channel
+(`sync_channel`, `threshold`). See
+[`docs/session-workflow.md`](docs/session-workflow.md) for the full table
+and the create → load → trial-restrict walkthrough.
+
 ## Directory structure
 
 ```
 /data/
   source/<typeId>/<sourceId>/<sourceId>-<userId>/<..>-<subjectId>/<session>/
+      nlx/    — Neuralynx raw (Events.nev, *.ncs)
+      mocap/  — Vicon / Motive export (*.csv)
+      video/
   processed/<typeId>/.../<session>/        ← standardised pipeline outputs
-      ephys/  — .dat .lfp .yaml .res.N .clu.N .all.evt
+      ephys/  — .dat .lfp .yaml .all.evt + spike-sort artifacts (see below)
       mocap/  — <maze>/*.mat
   project/<projectId>/<session>/           ← session.spath
       <symlinks to processed files>
@@ -216,6 +228,51 @@ session.create(["nlx", "whl"])
 
 Session name format: `<sourceId>-<userId>-<subjectId>-<date>`
 e.g. `sirotaA-jg-05-20120316`
+
+Each per-session path follows a 5-level hierarchy:
+`<typeId>/<sourceId>/<sourceId>-<userId>/<sourceId>-<userId>-<subjectId>/<session>`.
+
+**Padded subject IDs.** On-disk data may use 6-digit zero-padded subject IDs
+(`sirotaA-jg-000005`) even though session names use the compact form
+(`sirotaA-jg-05`). `link_session`, `discover_mazes`, and the sync helpers
+resolve both transparently — the canonical (compact) path is tried first,
+then the padded variant. `link_session` prints which one it resolved to.
+
+### Spike-sort artifacts (neurosuite-3 variant naming)
+
+Per-shank files under `processed/ephys/.../<session>/` follow the neurosuite-3
+**variant (chain-of-custody) naming convention**. `<method>` is `standard`
+(raw domain) or `stderiv` (spatial-derivative domain); `N` is the 1-based
+electrode-group index.
+
+```
+<base>.<type>.<method>.<N>          canonical (method-tagged)
+<base>.<type>.<N>                    legacy (untagged; still readable)
+<base>.<type>                        session-wide (no method, no group)
+```
+
+Three artifact classes fix how each type resolves:
+
+| Class          | Types                             | Resolution                                    |
+| -------------- | --------------------------------- | --------------------------------------------- |
+| SessionWide    | dat, lfp, xml, yaml, fil, nrs, eeg | single path (`<base>.<type>`)                 |
+| MethodSpecific | clu, clc, clp, fet, pca, col      | strict — no cross-variant fallback            |
+| Shared         | res, spk                          | `<method>` → `standard` → untagged legacy     |
+
+Supported formats (readers + byte-exact writers in `neurobox.io`):
+
+```
+.res  .clu  .spk  .fet  .pca      core spike-sort (binary)
+.clc  .clp                        hierarchical clustering (atom layer + linkage)
+.col  .drift                      collision decomposition, probe drift (YAML)
+.loc  .chunks                     source locations, chunk boundaries
+```
+
+The retired `.spkD` / `.fetD` / `.pcaD` "D-suffix" names are subsumed by
+`method="stderiv"`.
+
+See [`docs/session-workflow.md`](docs/session-workflow.md) for the full
+create/load walkthrough and the direct file-I/O API.
 
 ## Requirements
 
