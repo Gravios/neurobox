@@ -1,32 +1,41 @@
 """
 load_spk.py
 ===========
-Load spike waveform files produced by ndm_extractspikes.
+Load spike waveform files produced by ``ndm_extractspikes`` and
+``ndm_reextractspikes`` (neurosuite-3).
 
-File format (``.spk.N``)
---------------------------
-Flat binary, little-endian int16, no header.  The three-dimensional
-structure is implicit — dimensions must be supplied by the caller:
+File format (``.spk.<method>.N`` or legacy untagged ``.spk.N``)
+--------------------------------------------------------------
+Flat binary, little-endian int16, no header.  Shape:
 
-    (n_spikes × n_samples_per_spike × n_channels_in_group)
+    (n_spikes, n_samples_per_spike, n_channels_in_group)
 
-Waveforms are stored in C order (spike-major → sample-major →
-channel-minor), so the on-disk layout is:
-
-    spk0_samp0_ch0  spk0_samp0_ch1 ... spk0_sampS_ch0 ... spkN_sampS_chC
-
-This matches the layout expected by KlustaKwik and ndm_estimatedrift.
+Layout on disk is **sample-major within each spike, channel-minor
+within each sample** — equivalent to numpy C order of the shape
+above.  Reading with
+``np.fromfile(...).reshape(n_spikes, n_samples, n_channels)`` is
+correct.
 
 ``nSamples`` (number of waveform samples) and ``peakSampleIndex`` come
 from the ``spikeDetection.channelGroups[N]`` block in the session
 ``.xml`` / ``.yaml`` file.
 
-Variant: ``.spkD.N``
----------------------
-Produced by ``process_extractspikes_stderiv``.  Identical layout to
-``.spk.N`` but stores ``nChannels − 1`` sites (the spatial derivative
-between adjacent channels).  Pass ``n_channels_in_group - 1`` as
-*n_channels* when loading ``.spkD`` files.
+Variant naming (neurosuite-3)
+-----------------------------
+Under the neurosuite-3 *variant (chain-of-custody) naming convention*,
+``.spk`` is a **Shared** artifact — the raw waveform snippets are
+method-independent, so one physical copy is shared across variants.
+Resolution order for a request with method *m*:
+
+    <base>.spk.<m>.<shank>            preferred
+    <base>.spk.standard.<shank>       fallback (if m != 'standard')
+    <base>.spk.<shank>                untagged legacy fallback
+
+The retired ``.spkD.N`` name is **gone** — the stderiv transform is
+applied downstream at PCA time (``ndm_pca --method stderiv``), which
+writes ``.fet.stderiv.N`` directly.  There is no separate stderiv
+``.spk`` file to load.  A ``.spk`` that resolves to a raw/untagged
+copy is not treated as stderiv even in a stderiv session.
 """
 
 from __future__ import annotations
@@ -113,14 +122,27 @@ def load_spk(
 
 
 def load_spk_from_par(
-    file_base: str | Path,
-    shank: int,
+    file_base:  str | Path,
+    shank:      int,
     par=None,
-    n_spikes: int | None = None,
+    n_spikes:   int | None = None,
     uv_per_bit: float | None = None,
+    method:     str = "standard",
 ) -> np.ndarray:
     """Convenience wrapper that reads *n_samples* and *n_channels*
     from the session parameter object.
+
+    Under the neurosuite-3 variant naming convention, ``.spk`` is a
+    **Shared** artifact — one physical file is shared across method
+    variants because the stderiv transform is applied downstream at
+    PCA time.  This wrapper searches, in order:
+
+    1. ``<file_base>.spk.<method>.<shank>``
+    2. ``<file_base>.spk.standard.<shank>`` (only if ``method != 'standard'``)
+    3. ``<file_base>.spk.<shank>``               (untagged legacy)
+
+    and reads the first one that exists.  If none exist, it raises
+    :class:`FileNotFoundError` naming the primary path.
 
     Parameters
     ----------
@@ -135,6 +157,9 @@ def load_spk_from_par(
         Optional spike count for validation.
     uv_per_bit:
         Optional µV conversion factor.
+    method:
+        Variant tag used for the Shared-artifact search.  Defaults
+        to ``'standard'``.
 
     Returns
     -------
@@ -146,11 +171,24 @@ def load_spk_from_par(
         from neurobox.io.load_par import load_par
         par = load_par(str(file_base))
 
-    # Prefer .spkD if present (standard-deviation-projection variant)
-    spkD_path = Path(f"{file_base}.spkD.{shank}")
-    spk_path  = Path(f"{file_base}.spk.{shank}")
-    use_path  = spkD_path if spkD_path.exists() else spk_path
-    is_stderiv = use_path == spkD_path
+    # Neurosuite-3 Shared-artifact fall-back for .spk
+    candidates: list[Path] = [
+        Path(f"{file_base}.spk.{method}.{shank}"),
+    ]
+    if method != "standard":
+        candidates.append(Path(f"{file_base}.spk.standard.{shank}"))
+    candidates.append(Path(f"{file_base}.spk.{shank}"))    # untagged legacy
+
+    use_path: Path | None = None
+    for cand in candidates:
+        if cand.exists():
+            use_path = cand
+            break
+    if use_path is None:
+        raise FileNotFoundError(
+            f"No .spk file found for shank {shank}: tried "
+            + ", ".join(str(c) for c in candidates)
+        )
 
     # Extract n_samples and n_channels for this group from the parameter file
     # Support both XML (Struct) and YAML (dict-backed Struct) formats
@@ -159,6 +197,7 @@ def load_spk_from_par(
 
     try:
         # YAML path: spikeDetection.channelGroups is a list of dicts
+        # (or Struct-typed entries when loaded via load_par)
         spike_groups = par.spikeDetection.channelGroups
         if isinstance(spike_groups, list):
             grp = spike_groups[shank - 1]
@@ -167,7 +206,12 @@ def load_spk_from_par(
                 chs = grp.get("channels", [])
                 n_channels_spk = len(chs) if chs else n_channels_spk
             else:
+                # Struct-typed (load_par wraps YAML dicts in a Struct)
                 n_samples_spk  = int(getattr(grp, "nSamples", n_samples_spk))
+                chs = getattr(grp, "channels", None)
+                if chs is not None:
+                    ch_list = chs if isinstance(chs, list) else [chs]
+                    n_channels_spk = len(ch_list) or n_channels_spk
         # XML path: spikeDetection.channelGroups.group is a list of Structs
         elif hasattr(spike_groups, "group"):
             grp_list = spike_groups.group
@@ -183,9 +227,6 @@ def load_spk_from_par(
                 n_channels_spk = len(ch_list)
     except (AttributeError, IndexError, TypeError):
         pass  # keep defaults
-
-    if is_stderiv:
-        n_channels_spk = max(1, n_channels_spk - 1)
 
     return load_spk(use_path, n_samples_spk, n_channels_spk,
                     n_spikes=n_spikes, uv_per_bit=uv_per_bit)
