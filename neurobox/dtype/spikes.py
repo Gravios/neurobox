@@ -66,7 +66,7 @@ class NBSpk:
                                        else np.array([], dtype=np.int32))
         self.map: np.ndarray        = (np.asarray(map_, dtype=np.int64)
                                        if map_ is not None
-                                       else np.empty((0, 2), dtype=np.int64))
+                                       else np.empty((0, 3), dtype=np.int64))
         self.samplerate: float      = float(samplerate)
         self.fet: np.ndarray | None = fet
         self.spk: np.ndarray | None = spk
@@ -405,6 +405,133 @@ class NBSpk:
         """Return a deep copy. Mirrors MTASpk.copy."""
         import copy as _copy
         return _copy.deepcopy(self)
+
+    def save(
+        self,
+        file_base:  str | Path,
+        method:     str  = "standard",
+        overwrite:  bool = False,
+    ) -> list[Path]:
+        """Save this NBSpk back to neurosuite-3 ``.res`` / ``.clu`` files.
+
+        Complement of :meth:`load`.  Splits the globally-remapped
+        cluster IDs in :attr:`clu` back into per-shank local IDs
+        using :attr:`map`, converts :attr:`res` from seconds back
+        to sample indices, and writes one variant-tagged file pair
+        per shank present in :attr:`map`.
+
+        Parameters
+        ----------
+        file_base:
+            Session base path without extension — e.g.
+            ``/data/sirotaA-jg-05-20120316``.  Combined with the
+            ``method`` tag and per-shank suffix to form the output
+            path.
+        method:
+            Variant tag written into the filename
+            (``<base>.res.<method>.<shank>`` and
+            ``<base>.clu.<method>.<shank>``).  Defaults to
+            ``'standard'`` — the neurosuite-3 canonical tag when
+            no other variant is in play.
+        overwrite:
+            Passed through to the underlying writers.  When *False*
+            (default), a :class:`FileExistsError` is raised if any
+            output file already exists.
+
+        Returns
+        -------
+        list[pathlib.Path]
+            All files written, in shank-then-type order:
+            ``[res.<method>.1, clu.<method>.1, res.<method>.2, …]``.
+
+        Raises
+        ------
+        FileExistsError
+            If any target file exists and ``overwrite=False``.
+        ValueError
+            If the internal state is inconsistent (e.g. ``res`` and
+            ``clu`` different lengths, or ``map`` doesn't cover the
+            cluster IDs present in ``clu``).
+        """
+        from neurobox.io.ns3_writers import save_res, save_clu
+
+        file_base = Path(str(file_base))
+
+        # Validate internal state.
+        if self.res.size != self.clu.size:
+            raise ValueError(
+                f"NBSpk.save: res has {self.res.size} entries but "
+                f"clu has {self.clu.size}"
+            )
+        if self.res.size == 0:
+            return []
+        if self.map.size == 0:
+            raise ValueError(
+                "NBSpk.save: cluster→shank map is empty; nothing to save.  "
+                "This usually means the NBSpk was constructed directly "
+                "rather than loaded from disk."
+            )
+
+        # Convert res (seconds) → sample indices.
+        # Round-half-to-even so we don't accumulate a systematic bias
+        # from repeated round-trips through the seconds representation.
+        res_samples_all = np.round(
+            self.res.astype(np.float64) * self.samplerate
+        ).astype(np.int64)
+
+        written: list[Path] = []
+
+        # Sort by shank index (col 1 of map) so we produce a
+        # deterministic output order regardless of insertion order.
+        shanks = np.unique(self.map[:, 1])
+        for shank in shanks:
+            shank = int(shank)
+
+            # Rows of the map for this shank — carries the
+            # global→local mapping directly (col 2 = original local
+            # ID; col 0 = global remap assigned by load_clu_res).
+            shank_row_mask = self.map[:, 1] == shank
+            shank_rows     = self.map[shank_row_mask]
+            shank_globals  = shank_rows[:, 0]
+
+            # Which spike-array entries belong to this shank's clusters?
+            spike_mask = np.isin(self.clu, shank_globals)
+            if not spike_mask.any():
+                continue
+
+            local_res = res_samples_all[spike_mask]
+            local_clu_global = self.clu[spike_mask]
+
+            # Inverse-map globals → local per-shank IDs using the
+            # global→local mapping stored in col 2 of self.map.
+            global_to_local = dict(
+                zip(shank_globals.tolist(),
+                    shank_rows[:, 2].tolist())
+            )
+            local_clu = np.fromiter(
+                (global_to_local[int(g)] for g in local_clu_global),
+                dtype=np.int32,
+                count=int(spike_mask.sum()),
+            )
+
+            # NBSpk.load(as_seconds=True) sorts across all shanks by
+            # time, so re-sort each shank slice by sample so on-disk
+            # order is time-ascending (matches what load_clu_res
+            # would write for a fresh sort).
+            sort_ix = np.argsort(local_res, kind="stable")
+            local_res = local_res[sort_ix]
+            local_clu = local_clu[sort_ix]
+
+            res_path = file_base.with_name(
+                f"{file_base.name}.res.{method}.{shank}"
+            )
+            clu_path = file_base.with_name(
+                f"{file_base.name}.clu.{method}.{shank}"
+            )
+            written.append(save_res(res_path, local_res, overwrite=overwrite))
+            written.append(save_clu(clu_path, local_clu, overwrite=overwrite))
+
+        return written
 
     def save_unit_set(self, session, name: str, unit_ids) -> None:
         """Save named unit subset to disk. Mirrors MTASpk.set_unit_set.

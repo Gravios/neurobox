@@ -82,8 +82,11 @@ def load_clu_res(
         Spike times in samples (or seconds), sorted ascending.
     clu : np.ndarray, shape (n_spikes,)
         Globally-remapped cluster IDs (unique across shanks).
-    shank_map : np.ndarray, shape (n_unique_clusters, 2)
-        Columns: ``[global_cluster_id, shank_index]``.
+    shank_map : np.ndarray, shape (n_unique_clusters, 3)
+        Columns: ``[global_cluster_id, shank_index, local_cluster_id]``.
+        The third column preserves the on-disk cluster ID from the
+        source ``.clu.N`` file so :meth:`NBSpk.save` can reverse the
+        cross-shank global remap when writing per-shank files.
     """
     file_base = Path(str(file_base))
 
@@ -140,19 +143,27 @@ def load_clu_res(
             fclu = fclu[keep]
             fres = fres[keep]
 
-        fclu = fclu + max_clu
-        unique_clu = np.unique(fclu)
-        max_clu = int(unique_clu.max()) + 1
+        fclu_global = fclu + max_clu
+        unique_locals  = np.unique(fclu)
+        unique_globals = unique_locals + max_clu
+        max_clu = int(unique_globals.max()) + 1
 
         all_res.append(fres)
-        all_clu.append(fclu)
+        all_clu.append(fclu_global)
+        # 3-column map: [global_id, shank_index, local_id]
+        # (local_id lets callers reverse the global-remap when
+        # writing per-shank .clu files.)
         all_map.append(
-            np.column_stack([unique_clu, np.full(len(unique_clu), shank)])
+            np.column_stack([
+                unique_globals,
+                np.full(len(unique_globals), shank),
+                unique_locals,
+            ])
         )
 
     if not all_res:
         empty = np.array([], dtype=np.int64)
-        return empty, empty.astype(np.int32), np.empty((0, 2), dtype=np.int64)
+        return empty, empty.astype(np.int32), np.empty((0, 3), dtype=np.int64)
 
     res = np.concatenate(all_res)
     clu = np.concatenate(all_clu)
