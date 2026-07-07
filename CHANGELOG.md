@@ -1,3 +1,86 @@
+## [Unreleased]
+
+### Added
+
+**neurosuite-3 variant (chain-of-custody) file naming** — `NBSessionPaths`
+- Per-shank artifacts are classified into three resolution classes:
+  SessionWide (`dat`, `lfp`, `yaml`, …), MethodSpecific (`clu`, `clc`,
+  `clp`, `fet`, `pca`, `col`), and Shared (`res`, `spk`).
+- `ns3_class(type)`, `ns3_file(type, shank, method)` (name-only), and
+  `resolve_ns3(type, shank, method)` (disk-aware, returns
+  `(path, resolved_method)`).
+- Type-specific helpers: `spk_file`, `fet_file`, `pca_file`, `clc_file`,
+  `clp_file`, `col_file`, plus variant-tagged `clu_ns3_file` /
+  `res_ns3_file`.  Legacy singular `res_file` / `clu_file` unchanged for
+  backward compatibility.
+- Retired `.spkD` / `.fetD` / `.pcaD` names are subsumed by
+  `method="stderiv"`.
+
+**neurosuite-3 binary readers** — `neurobox.io`
+- `load_fet` → `FetData(features, timestamps, n_dimensions)`
+  (`.fet[.method].N`).
+- `load_pca` → `PcaBasis(means, eigenvectors, …)` (`.pca[.method].N`).
+- `load_clc` (atom child-layer) and `load_clp` → `ClpMap(parent_of, header)`
+  (hierarchical `.clc` / `.clp`), with `build_atom_to_fiber` /
+  `build_fiber_to_atoms` helpers.
+- `load_col` / `load_drift` (YAML), `load_loc` / `load_chunks`
+  (small binary + text), plus a `LOC_COLUMNS` constant.
+- All readers are naming-agnostic — they accept variant-tagged, standard,
+  or untagged-legacy paths.
+
+**neurosuite-3 writers** — `neurobox.io.ns3_writers`
+- `save_res`, `save_clu`, `save_clc`, `save_clp`, `save_spk`, `save_fet`,
+  `save_pca` (binary); `save_col`, `save_drift` (YAML); `save_loc`,
+  `save_chunks` (small binary + text).
+- Every writer's output is byte-exact-reversible by the matching `load_*`.
+- Guarantees: little-endian regardless of host, atomic replace via
+  `<path>.tmp` + `os.replace`, `overwrite=False` default, shape/dtype
+  validation, parent-dir auto-creation.
+
+**`NBSpk.save(base, method, overwrite)`** — object-level spike I/O
+- Complement of `NBSpk.load()`: writes the in-memory spike train back to
+  per-shank `.res.<method>.N` / `.clu.<method>.N` file pairs via the ns3
+  writers.  Returns the list of paths written.
+- Reverses the cross-shank global-ID remap (see the shank_map change below)
+  so a load → save round-trip reproduces the source `.clu` byte pattern.
+
+**`link_session` — padded subject-ID resolution**
+- Sirota-lab processed data uses 6-digit zero-padded subject IDs on disk
+  (`sirotaA-jg-000005`) while session names use the compact form
+  (`sirotaA-jg-05`).  New `NBSessionPaths` resolvers
+  (`subject_id_padded`, `resolve_processed_ephys`, `resolve_processed_mocap`,
+  `resolve_processed_mocap_session`) try the canonical path first, then the
+  padded variant.  `link_session`, `discover_mazes`, and
+  `sync_pipelines._find_file` use them; `link_session` prints the resolved
+  source directory.
+
+**`sync_ephys_vicon`** — generic-ephys entry point
+- Thin wrapper over `sync_nlx_vicon` (unified neurobox layout), registered
+  in the dispatch table for `data_loggers=['ephys', 'vicon']` and
+  re-exported from `neurobox.utils.sync`.
+
+**Documentation**
+- `docs/session-workflow.md` — full directory-layout reference, neurosuite-3
+  format tables, and create/load/trial-restrict walkthrough.
+- README "Directory structure" section expanded with the processed subtree,
+  padded subject IDs, and the variant-naming convention.
+
+### Changed
+
+**`load_clu_res` shank_map is now 3-column**
+- `[global_cluster_id, shank_index, local_cluster_id]` (was 2-column).  The
+  third column preserves the on-disk cluster ID so `NBSpk.save()` can undo
+  the cross-shank global remap.  Callers using only columns 0–1 are
+  unaffected.
+
+**`load_spk_from_par`** — Shared-artifact resolution
+- Searches `.spk.<method>.N` → `.spk.standard.N` → `.spk.N` (untagged legacy)
+  instead of preferring the retired `.spkD`.  The incorrect
+  `n_channels - 1` adjustment for `.spkD` is removed (the stderiv transform
+  is applied downstream at PCA time; there is no separate `.spk` variant).
+  Also fixes channel-count extraction from Struct-typed YAML groups.
+
+
 ## [0.1.2] — 2026-04-24
 
 ### Added
