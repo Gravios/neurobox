@@ -310,16 +310,315 @@ class NBSessionPaths:
         return self.processed_ephys / f"{self.session_name}.lfp"
 
     def res_file(self, shank: int) -> Path:
-        """Spike timestamps for shank N (.res.N)."""
+        """Spike timestamps for shank N — canonical path
+        ``<base>.res.<shank>``.
+
+        For backward compatibility with legacy (untagged) layouts.
+        In neurosuite-3, ``.res`` is a **Shared** artifact — use
+        :meth:`resolve_ns3_shared` to search variant-tagged copies
+        (``<base>.res.<method>.<shank>``) with fall-back to this
+        untagged path.
+        """
         return self.processed_ephys / f"{self.session_name}.res.{shank}"
 
     def clu_file(self, shank: int) -> Path:
-        """Cluster assignments for shank N (.clu.N)."""
+        """Cluster assignments (fiber layer, or flat) for shank N —
+        canonical untagged path ``<base>.clu.<shank>``.
+
+        For backward compatibility with legacy layouts.  In
+        neurosuite-3, ``.clu`` is a **MethodSpecific** artifact and
+        the canonical layout is ``<base>.clu.<method>.<shank>``;
+        use :meth:`ns3_file` (``type='clu'``) or
+        :meth:`resolve_ns3_method_specific` for the variant-tagged
+        form.
+
+        In a hierarchical session this file is the *fiber (parent)*
+        layer; the sibling :meth:`clc_file` is the *atom (child)*
+        layer and :meth:`clp_file` is the atom→fiber map.
+        """
         return self.processed_ephys / f"{self.session_name}.clu.{shank}"
 
     def evt_file(self, suffix: str = "all") -> Path:
         """Event file (.{suffix}.evt)."""
         return self.processed_ephys / f"{self.session_name}.{suffix}.evt"
+
+    # ------------------------------------------------------------------ #
+    # Neurosuite-3 variant naming convention                              #
+    # ------------------------------------------------------------------ #
+    #
+    # Neurosuite-3 groups per-shank artifacts into three classes with
+    # different naming and resolution rules (see the spec at
+    # `doc/ndmanager-plugins/formats/naming.md` in the neurosuite-3
+    # repository):
+    #
+    #   ┌──────────────┬─────────────────────────────────────────────┐
+    #   │ Class        │ Canonical layout                             │
+    #   ├──────────────┼─────────────────────────────────────────────┤
+    #   │ SessionWide  │ <base>.<type>                               │
+    #   │              │  (fil, dat, xml, yaml, nrs, par, eeg, lfp)  │
+    #   │ MethodSpec.  │ <base>.<type>.<method>.<shank>              │
+    #   │              │  (clu, clc, clp, fet, pca, col, model, klg) │
+    #   │              │  strict — no cross-variant fall-back        │
+    #   │ Shared       │ prefer <base>.<type>.<method>.<shank>       │
+    #   │              │  then     <base>.<type>.standard.<shank>    │
+    #   │              │  then     <base>.<type>.<shank>  (legacy)   │
+    #   │              │  (res, spk)                                 │
+    #   └──────────────┴─────────────────────────────────────────────┘
+    #
+    # ``method`` is a variant tag (e.g. ``'standard'`` for the raw
+    # domain, ``'stderiv'`` for the spatial-derivative /
+    # temporal-difference domain).  Any string is allowed — new
+    # variants are added just by writing files named with them.
+    #
+    # The retired ``.spkD`` / ``.pcaD`` / ``.fetD`` "D-suffix"
+    # names are subsumed by ``.spk.stderiv`` / ``.pca.stderiv`` /
+    # ``.fet.stderiv``.  ``.spk`` is Shared, so a stderiv session
+    # can still fall through to a raw ``.spk`` because the stderiv
+    # transform is applied downstream at PCA time.
+
+    _NS3_SESSION_WIDE: tuple[str, ...] = (
+        "fil", "dat", "xml", "yaml", "nrs", "par", "eeg", "lfp",
+    )
+    _NS3_METHOD_SPECIFIC: tuple[str, ...] = (
+        "clu", "clc", "clp", "fet", "pca", "col", "model", "klg",
+    )
+    _NS3_SHARED: tuple[str, ...] = ("res", "spk")
+
+    def ns3_class(self, type_id: str) -> str:
+        """Classify *type_id* per the neurosuite-3 variant naming spec.
+
+        Returns one of ``'session_wide'``, ``'method_specific'``,
+        ``'shared'``.  Raises :class:`ValueError` for unknown types.
+        """
+        if type_id in self._NS3_SESSION_WIDE:
+            return "session_wide"
+        if type_id in self._NS3_METHOD_SPECIFIC:
+            return "method_specific"
+        if type_id in self._NS3_SHARED:
+            return "shared"
+        raise ValueError(
+            f"Unknown neurosuite-3 artifact type {type_id!r}.  "
+            f"Known types: session-wide={self._NS3_SESSION_WIDE}, "
+            f"method-specific={self._NS3_METHOD_SPECIFIC}, "
+            f"shared={self._NS3_SHARED}"
+        )
+
+    def ns3_file(
+        self,
+        type_id: str,
+        shank:   int | None = None,
+        method:  str = "standard",
+    ) -> Path:
+        """Return the *canonical* variant-tagged path per neurosuite-3.
+
+        This is the pure name-computing helper — no filesystem lookup.
+
+        Parameters
+        ----------
+        type_id:
+            Artifact type (``'clu'``, ``'spk'``, ``'fet'``, …).
+        shank:
+            Electrode group index (1-based).  Required for
+            method-specific and shared types; must be ``None`` for
+            session-wide types.
+        method:
+            Variant tag.  Defaults to ``'standard'``.
+
+        Returns
+        -------
+        pathlib.Path
+
+        Raises
+        ------
+        ValueError
+            If *shank* is required but missing (or vice versa), or
+            if *type_id* is unknown.
+        """
+        cls = self.ns3_class(type_id)
+        if cls == "session_wide":
+            if shank is not None:
+                raise ValueError(
+                    f"neurosuite-3 type {type_id!r} is session-wide; "
+                    "shank must be None"
+                )
+            return self.processed_ephys / f"{self.session_name}.{type_id}"
+
+        if shank is None:
+            raise ValueError(
+                f"neurosuite-3 type {type_id!r} requires a shank"
+            )
+
+        # method-specific + shared use the same canonical filename
+        return (
+            self.processed_ephys
+            / f"{self.session_name}.{type_id}.{method}.{shank}"
+        )
+
+    def resolve_ns3(
+        self,
+        type_id: str,
+        shank:   int | None = None,
+        method:  str = "standard",
+    ) -> tuple[Path, str]:
+        """Resolve a neurosuite-3 artifact on disk with class-specific
+        fall-back rules.
+
+        See :meth:`ns3_class` for the resolution policy per class:
+
+        * SessionWide     — exactly one candidate; returned as-is.
+        * MethodSpecific  — strict; the variant-tagged path is
+                            returned regardless of existence.
+        * Shared          — try ``<method>``, then ``standard``,
+                            then the untagged legacy path; return
+                            the first that exists.  Falls through
+                            to the variant-tagged path (for use in
+                            error messages) if none exist.
+
+        Parameters
+        ----------
+        type_id, shank, method:
+            As for :meth:`ns3_file`.
+
+        Returns
+        -------
+        (path, resolved_method):
+            *path* is the resolved :class:`~pathlib.Path`.
+            *resolved_method* is the variant tag of the file that
+            was actually found — ``'standard'`` when the untagged
+            legacy path was used, or the caller's *method* for a
+            MethodSpecific / SessionWide type (they never fall
+            back).  For Shared types callers can compare
+            ``resolved_method == 'stderiv'`` to reproduce the spec's
+            ``resolvedIsStderiv()`` predicate.
+        """
+        cls = self.ns3_class(type_id)
+        if cls == "session_wide":
+            return self.ns3_file(type_id, method=method), method
+
+        if cls == "method_specific":
+            # Strict — no fall-back to another variant.
+            return self.ns3_file(type_id, shank, method=method), method
+
+        # Shared:  <method> → standard → untagged legacy
+        base = self.processed_ephys
+        primary = base / f"{self.session_name}.{type_id}.{method}.{shank}"
+        if primary.exists():
+            return primary, method
+        if method != "standard":
+            std = base / f"{self.session_name}.{type_id}.standard.{shank}"
+            if std.exists():
+                return std, "standard"
+        untagged = base / f"{self.session_name}.{type_id}.{shank}"
+        if untagged.exists():
+            return untagged, "standard"
+        # None found — return the primary path for a clear error msg
+        return primary, method
+
+    # ------------------------------------------------------------------ #
+    # Type-specific helpers                                               #
+    # ------------------------------------------------------------------ #
+
+    def spk_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Spike waveforms for shank N (variant-tagged path).
+
+        In neurosuite-3, ``.spk`` is a *Shared* artifact — the raw
+        waveform snippets are method-independent, so a stderiv
+        session can read the same file as a standard session.
+        Use :meth:`resolve_ns3` (``type='spk'``) to search with the
+        Shared fall-back rules.
+        """
+        return self.ns3_file("spk", shank, method=method)
+
+    def fet_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """PCA feature vectors for shank N — canonical path
+        ``<base>.fet.<method>.<shank>``.
+
+        MethodSpecific: strict, no cross-variant fall-back.  The
+        retired ``.fetD.N`` name is subsumed by
+        ``method='stderiv'``.
+        """
+        return self.ns3_file("fet", shank, method=method)
+
+    def pca_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """PCA eigenvector basis for shank N — canonical path
+        ``<base>.pca.<method>.<shank>``.
+
+        MethodSpecific.  The retired ``.pcaD.N`` name is subsumed
+        by ``method='stderiv'``.
+        """
+        return self.ns3_file("pca", shank, method=method)
+
+    def clc_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Atom (child-layer) cluster assignments for shank N.
+
+        MethodSpecific: strict.  Present only in hierarchical
+        sessions; carries the same ``<method>`` tag as the
+        matching :meth:`clu_file` / :meth:`clp_file`.
+        """
+        return self.ns3_file("clc", shank, method=method)
+
+    def clp_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Atom→fiber (child→parent) linkage for shank N.
+
+        MethodSpecific.  Carries the same ``<method>`` tag as the
+        matching :meth:`clu_file` / :meth:`clc_file` (see
+        ``clp.md`` in the neurosuite-3 spec).
+        """
+        return self.ns3_file("clp", shank, method=method)
+
+    def col_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Collision-decomposition results for shank N (YAML,
+        MethodSpecific)."""
+        return self.ns3_file("col", shank, method=method)
+
+    def clu_ns3_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Variant-tagged ``.clu.<method>.<shank>``.
+
+        Separate from :meth:`clu_file` (which returns the untagged
+        legacy path for backward compat).  Use this one for new
+        neurosuite-3 layouts.
+        """
+        return self.ns3_file("clu", shank, method=method)
+
+    def res_ns3_file(
+        self,
+        shank:  int,
+        method: str = "standard",
+    ) -> Path:
+        """Variant-tagged ``.res.<method>.<shank>`` (Shared).
+
+        See :meth:`resolve_ns3` to search with fall-back to the
+        untagged legacy ``<base>.res.<shank>``.
+        """
+        return self.ns3_file("res", shank, method=method)
 
     # ------------------------------------------------------------------ #
     # Analysis output paths (written to spath)                           #
