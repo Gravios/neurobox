@@ -109,9 +109,12 @@ from .load_clc_clp             import (
     load_clc, load_clp, ClpMap,
     build_atom_to_fiber, build_fiber_to_atoms,
 )
+from .load_yaml_ns3            import load_col, load_drift
+from .load_loc_chunks          import load_loc, load_chunks, LOC_COLUMNS
 from .ns3_writers              import (
     save_res, save_clu, save_clc, save_clp,
     save_spk, save_fet, save_pca,
+    save_col, save_drift, save_loc, save_chunks,
 )
 from .load_evt                 import load_evt, evt_to_periods
 from .parse_events             import parse_nlx_events
@@ -158,6 +161,16 @@ __all__ = [
     "save_spk",
     "save_fet",
     "save_pca",
+    "save_col",
+    "save_drift",
+    "save_loc",
+    "save_chunks",
+    # Neurosuite-3 auxiliary readers (YAML + small binary/text)
+    "load_col",
+    "load_drift",
+    "load_loc",
+    "load_chunks",
+    "LOC_COLUMNS",
     # Events
     "load_evt",
     "evt_to_periods",
