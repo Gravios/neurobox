@@ -143,22 +143,37 @@ class TestKernels:
 
 
 class TestKernelEquivalence:
-    """If both Cython and Python kernels are available, they produce
-    bit-for-bit identical output."""
+    """Every registered CCG kernel produces bit-for-bit identical output.
 
-    @pytest.mark.skipif(len(KERNELS) < 2, reason="Cython kernel not built")
+    Only the Cython kernel is registered today — the pure-Python
+    fallback was removed when Cython became a hard build dependency
+    (see :func:`_get_kernels`), so this test skips.  It is written
+    against *all* pairs from ``KERNELS`` rather than a hardcoded
+    python/cython pair, so it starts running automatically the moment
+    a second variant (e.g. a SIMD-tuned kernel) is added.
+    """
+
+    @pytest.mark.skipif(
+        len(KERNELS) < 2,
+        reason=f"needs >=2 registered kernels, have {len(KERNELS)}",
+    )
     def test_kernels_identical(self):
-        py = next(k for k in KERNELS if k[0] == "python")
-        cy = next(k for k in KERNELS if k[0] == "cython")
+        from itertools import combinations
+
         rng = np.random.default_rng(42)
         for trial in range(5):
             n = rng.integers(50, 500)
             times = np.sort(rng.uniform(0, 1_000_000, size=n))
             clu = rng.integers(0, 4, size=n).astype(np.int64)
-            c_py = py[1](times, clu, 50.0, 20, 4)
-            c_cy = cy[1](times, clu, 50.0, 20, 4)
-            np.testing.assert_array_equal(c_py, c_cy,
-                err_msg=f"kernels diverged on trial {trial} (n={n})")
+            for (a_name, a_counts, _), (b_name, b_counts, _) in \
+                    combinations(KERNELS, 2):
+                c_a = a_counts(times, clu, 50.0, 20, 4)
+                c_b = b_counts(times, clu, 50.0, 20, 4)
+                np.testing.assert_array_equal(
+                    c_a, c_b,
+                    err_msg=(f"kernels {a_name!r} and {b_name!r} diverged "
+                             f"on trial {trial} (n={n})"),
+                )
 
 
 # ─────────────────────────────────────────────────────────────────────────── #

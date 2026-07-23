@@ -67,6 +67,40 @@
 
 ### Changed
 
+**Python 3.13 and 3.14 support**
+- Full test suite verified on CPython 3.10, 3.12, 3.13 and 3.14
+  (1083 passed / 6 skipped on each; 1214 passed / 1 skipped on 3.14
+  with every optional dependency group installed).  Cython extensions
+  build cleanly on all four.  No source changes were required —
+  `requires-python = ">=3.10"` already permitted them; the classifiers
+  now advertise 3.13 and 3.14 as well.
+- Verified against numpy 2.5, scipy 1.18, pandas 3.0, matplotlib 3.11,
+  scikit-learn 1.9, PySide6 6.11, hmmlearn 0.3.3 and torch 2.13.
+
+**Packaging metadata modernised (PEP 639)**
+- `license = { text = "MIT" }` → `license = "MIT"` (SPDX expression), and
+  the now-redundant `License :: OSI Approved :: MIT License` classifier is
+  dropped.  Together these clear the setuptools deprecation warnings that
+  will otherwise become hard errors.
+- Build requirement raised `setuptools>=68` → `setuptools>=77`, which is
+  the minimum that accepts the SPDX form.  Standard PEP 517 build
+  isolation installs this automatically; only `--no-build-isolation`
+  builds need setuptools upgraded by hand.
+
+**`imagescnan` uses `Colormap.with_extremes`**
+- Replaces the `copy()` + `set_bad()` pair, which matplotlib 3.11
+  deprecates.  `with_extremes` returns a new colormap, so it preserves
+  the isolation the explicit copy provided (a caller-supplied or
+  registered colormap is still never mutated) while removing the
+  deprecation warning.
+
+**`TestKernelEquivalence` generalised**
+- Now compares every pair from `KERNELS` instead of a hardcoded
+  python/cython pair, and reports an accurate skip reason.  The
+  pure-Python kernel was removed when Cython became a hard dependency,
+  so the test currently skips — but it will start running automatically
+  if a second kernel variant is registered.
+
 **`load_clu_res` shank_map is now 3-column**
 - `[global_cluster_id, shank_index, local_cluster_id]` (was 2-column).  The
   third column preserves the on-disk cluster ID so `NBSpk.save()` can undo

@@ -154,9 +154,17 @@ def imagescnan(
     if colormap_flip:
         cmap = cmap.reversed()
 
-    # Mark NaNs in the colormap
-    cmap = cmap.copy() if hasattr(cmap, "copy") else cmap
-    cmap.set_bad(color=nan_rgb)
+    # Mark NaNs in the colormap.  `with_extremes` returns a *new*
+    # colormap rather than mutating in place, so it also removes the
+    # need for the explicit copy that guarded against clobbering a
+    # caller-supplied (or registered) colormap.  `set_bad` is
+    # deprecated as of matplotlib 3.11; `with_extremes` has been
+    # available since 3.4, comfortably under our >=3.7 floor.
+    if hasattr(cmap, "with_extremes"):
+        cmap = cmap.with_extremes(bad=nan_rgb)
+    else:                                   # pragma: no cover
+        cmap = cmap.copy() if hasattr(cmap, "copy") else cmap
+        cmap.set_bad(color=nan_rgb)
 
     # Clip to limits for circular data — MATLAB behaviour folds outside
     # values to the limit; for linear data we clip identically.  Both

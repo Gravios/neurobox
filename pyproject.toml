@@ -1,5 +1,7 @@
 [build-system]
-requires = ["setuptools>=68", "wheel", "Cython>=3.0", "numpy>=1.26"]
+# setuptools>=77 is required for the PEP 639 SPDX `license` expression
+# used below.  Older setuptools rejects `license = "MIT"` as a string.
+requires = ["setuptools>=77", "wheel", "Cython>=3.0", "numpy>=1.26"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +9,7 @@ name = "neurobox"
 version = "0.1.2"
 description = "Analysis toolbox for silicon-probe electrophysiology, integrated with neurosuite-3"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 requires-python = ">=3.10"
 
 authors = [
@@ -28,11 +30,15 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "License :: OSI Approved :: MIT License",
+    # NB: no "License ::" classifier — superseded by the SPDX
+    # `license` expression above (PEP 639); setuptools>=77 rejects
+    # declaring both.
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Operating System :: POSIX :: Linux",
 ]
 
