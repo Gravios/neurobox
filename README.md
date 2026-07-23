@@ -276,8 +276,12 @@ create/load walkthrough and the direct file-I/O API.
 
 ## Requirements
 
-- Python ≥ 3.10
+- Python ≥ 3.10 — test suite verified on 3.12, 3.13 and 3.14
 - numpy ≥ 1.26
 - scipy ≥ 1.12
 - pyyaml ≥ 6.0
 - python-dotenv ≥ 1.0
+- pandas ≥ 2.0
+
+Building from source additionally needs `setuptools ≥ 77` and `Cython ≥ 3.0`
+(the Cython extensions are a hard requirement, not an optional accelerator).
