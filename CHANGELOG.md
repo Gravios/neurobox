@@ -114,6 +114,42 @@
   is applied downstream at PCA time; there is no separate `.spk` variant).
   Also fixes channel-count extraction from Struct-typed YAML groups.
 
+### Fixed
+
+**Spots `.pos` reader used native byte order**
+- `sync_pipelines` read the spots tracker's `.pos` file with a native
+  `np.int16`, the only binary reader in the package that didn't pin
+  byte order — the other twelve all use explicit `<i2` / `<i4` / `<i8`
+  / `<f4` / `<f8`.  On a big-endian host this silently produced
+  byte-swapped coordinates rather than failing.  Now `"<i2"`.
+- Added `tests/test_binary_byte_order.py`, a source-level guard that
+  walks the AST of every module under `neurobox/{io,dtype,analysis,
+  viz,config,utils}` and asserts that each `np.fromfile` /
+  `np.frombuffer` / `np.memmap` call names an explicit byte order.
+  This is deliberately a source check, not a behavioural one: on
+  little-endian hardware `np.int16` and `"<i2"` are byte-for-byte
+  identical, so no runtime assertion running on x86 or Apple Silicon
+  could distinguish them.  The guard is self-tested (it must reject
+  `np.int16` and accept `<i2`, `>f8`, `|i1`, `u1`) and was confirmed
+  to flag the original defect at its exact line.
+
+**Cython kernels used bare C `long` for int64 buffers**
+- `_ccg_engine.pyx` and `_within_ranges_engine.pyx` declared their
+  integer buffers as `cnp.ndarray[long, ...]` while allocating the
+  backing arrays as `np.int64` and receiving `np.int64` from every
+  Python caller.  The two coincide under LP64 (Linux, macOS) but C
+  `long` is 32-bit under Windows' LLP64 model, so the declared buffer
+  type and the actual dtype disagree there.
+- Retyped to fixed-width `cnp.int64_t` throughout — buffer
+  declarations, scalars, pointers, memoryviews and casts — so the
+  declared type and the allocated dtype stay in lockstep regardless of
+  platform data model.  A note in each module docstring records why,
+  to stop the change being "simplified" back.
+- Verified as a pure no-op on LP64: a golden-reference harness hashing
+  the exact output bytes of both kernels over 80 randomised trials
+  produces an identical digest before and after, on CPython 3.10,
+  3.12, 3.13 and 3.14.
+
 
 ## [0.1.2] — 2026-04-24
 
