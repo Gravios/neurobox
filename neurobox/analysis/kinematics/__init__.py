@@ -23,6 +23,9 @@ from .body_referenced import (
 )
 
 # Round 19 — kitchen-sink 59-column feature set
+from .fet_mis import (
+    fet_mis, FetMisConfig, FET_MIS_TITLES, FET_MIS_DESCRIPTIONS,
+)
 from .fet_all import (
     FetAllResult,
     fet_all_features,
@@ -30,6 +33,11 @@ from .fet_all import (
 )
 
 __all__ = [
+    # fet_mis — default feature basis for label_behavior
+    "fet_mis",
+    "FetMisConfig",
+    "FET_MIS_TITLES",
+    "FET_MIS_DESCRIPTIONS",
     "augment_xyz",
     "finite_nonzero_mask",
     "zscore_with_mask",

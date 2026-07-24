@@ -46,6 +46,9 @@ When to pick which backend
 * No torch installed → ``rf``, ``gbm``, or ``sklearn-mlp``.
 """
 
+from .heuristic_labeling import (
+    label_with_heuristics, HeuristicThresholds, windowed_trajectory_stats,
+)
 from .base       import Classifier, FitInfo
 from .bootstrap  import whole_state_bootstrap, BootstrapResult
 from .label      import (
@@ -75,6 +78,10 @@ from .session_alignment import (
 )
 
 __all__ = [
+    # Stage-1 heuristic labelling (label_behavior_with_heuristics.m)
+    "label_with_heuristics",
+    "HeuristicThresholds",
+    "windowed_trajectory_stats",
     "Classifier",
     "FitInfo",
     "whole_state_bootstrap",

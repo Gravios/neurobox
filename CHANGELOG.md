@@ -2,6 +2,33 @@
 
 ### Added
 
+**`fet_mis` feature set** — `neurobox.analysis.kinematics.fet_mis`
+- Port of `MTA/features/fet_mis.m`; the 18-column feature basis the
+  behaviour-labelling pipeline (`label_behavior` → `label_bhv_msnn`)
+  uses by default.  Five spine/head pitch angles, trajectory-yaw PPC,
+  four marker heights, four log10 XY speeds, two log10 Z speeds, spine
+  sinuosity, and summed inter-segment yaw deviation.
+- Parameters live in a frozen, hashable `FetMisConfig` so the result
+  can key a `cached_compute` cache — replacing the concatenated
+  `MTAC_BATCH+...` model-identity string the MATLAB pipeline built by
+  hand.
+- The PPC column is computed at the source sample rate and only then
+  low-passed and resampled, matching MATLAB (where it came from a
+  cached `.lsppc` file).  Computing it post-downsample would silently
+  change what the `shift` parameter means.
+
+**Stage-1 heuristic labeller** —
+`neurobox.analysis.classifiers.heuristic_labeling`
+- Port of `MTA/classifiers/label_behavior_with_heuristics.m`.  Detects
+  `gper` / `walk` / `rear` through a ~15-threshold cascade over
+  windowed trajectory statistics.
+- `windowed_trajectory_stats()` replaces five near-identical 20-line
+  loop blocks in the MATLAB with one vectorised helper.
+- Every magic number is a documented field of the frozen
+  `HeuristicThresholds` dataclass instead of being hardcoded inline.
+- Returns an `NBStateCollection` rather than writing `.stc` files and
+  mutating a session object, so it is testable and composable.
+
 **neurosuite-3 variant (chain-of-custody) file naming** — `NBSessionPaths`
 - Per-shank artifacts are classified into three resolution classes:
   SessionWide (`dat`, `lfp`, `yaml`, …), MethodSpecific (`clu`, `clc`,
@@ -115,6 +142,19 @@
   Also fixes channel-count extraction from Struct-typed YAML groups.
 
 ### Fixed
+
+**`bfet` defect in the heuristic labeller — documented and switchable**
+- MATLAB line 138 of `label_behavior_with_heuristics.m` builds the
+  `btraj` window stack from `hfet` (2-column, head only) instead of
+  `bfet` (5-column, full spine chain).  `bfet` is computed and then
+  discarded, so the derived `bf` trace duplicates `hf` — yet `bf` is
+  load-bearing, driving the `body_turn` gate that subtracts turn
+  intervals out of the walk periods.
+- Reproduced by default (`reproduce_bfet_defect=True`) because the
+  surrounding thresholds were tuned against this behaviour; silently
+  correcting it would invalidate every historical label.  Set the flag
+  to `False` to use `bfet` as intended, but re-validate against
+  hand-labelled sessions before trusting the result.
 
 **Spots `.pos` reader used native byte order**
 - `sync_pipelines` read the spots tracker's `.pos` file with a native
