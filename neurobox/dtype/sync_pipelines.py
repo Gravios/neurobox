@@ -793,7 +793,11 @@ def sync_nlx_spots(
             f"Spots .pos file not found for {session.name!r}.  "
             f"Searched: {session.spath}"
         )
-    raw  = np.fromfile(str(pos_file), dtype=np.int16).reshape(-1, 4)
+    # Explicit little-endian: the .pos format is LE on disk, and every
+    # other binary reader in neurobox pins byte order the same way.
+    # A native `np.int16` here would silently byte-swap on a big-endian
+    # host rather than failing loudly.
+    raw  = np.fromfile(str(pos_file), dtype="<i2").reshape(-1, 4)
     xy   = raw.astype(np.float64).reshape(-1, 2, 2)
     n_fr = xy.shape[0]
     xyz_arr = np.concatenate([xy, np.zeros((n_fr, 2, 1))], axis=-1)

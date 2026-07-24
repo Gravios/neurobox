@@ -41,6 +41,17 @@ Public entry point
     Inputs are the *merged* and *sorted* event arrays — the caller does
     the sort in numpy then hands the kernel three small arrays.  This
     keeps the .pyx narrow and lets us reuse numpy's stable sort.
+
+Integer typing
+--------------
+All integer buffers and scalars use ``cnp.int64_t`` rather than bare C
+``long``.  The two coincide on LP64 (Linux, macOS) but ``long`` is only
+32 bits under Windows' LLP64 model, which would make the buffer
+declarations disagree with the ``np.int64`` arrays the Python callers
+build and raise ``ValueError: Buffer dtype mismatch`` at runtime.
+Fixed-width types keep the declared buffer type and the allocated array
+dtype in lockstep on every platform.  Do not "simplify" these back to
+``long``.
 """
 
 import numpy as np
@@ -58,11 +69,11 @@ KIND_STOP  = 2
 
 
 def within_ranges_matrix_engine(
-    cnp.ndarray[long, ndim=1, mode="c"] event_kind not None,
-    cnp.ndarray[long, ndim=1, mode="c"] event_label not None,
-    cnp.ndarray[long, ndim=1, mode="c"] event_point_idx not None,
-    long n_points,
-    long n_labels,
+    cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] event_kind not None,
+    cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] event_label not None,
+    cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] event_point_idx not None,
+    cnp.int64_t n_points,
+    cnp.int64_t n_labels,
 ):
     """Run the sweep over a pre-merged and sorted event stream.
 
@@ -91,14 +102,14 @@ def within_ranges_matrix_engine(
         ``(n_points, n_labels)`` ``uint8`` array; ``1`` where the
         point lies in any range with that label, ``0`` otherwise.
     """
-    cdef long n_events = event_kind.shape[0]
+    cdef cnp.int64_t n_events = event_kind.shape[0]
     cdef cnp.ndarray[uint8_t, ndim=2, mode="c"] out = (
         np.zeros((n_points, n_labels), dtype=np.uint8)
     )
-    cdef cnp.ndarray[long, ndim=1, mode="c"] active = (
+    cdef cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] active = (
         np.zeros(n_labels, dtype=np.int64)
     )
-    cdef long i, k, kind, lab, pidx
+    cdef cnp.int64_t i, k, kind, lab, pidx
 
     for i in range(n_events):
         kind = event_kind[i]

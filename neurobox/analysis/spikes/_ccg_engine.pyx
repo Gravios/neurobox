@@ -35,6 +35,17 @@ Output index for one count: ``[bin, mark1, mark2]`` where ``mark1`` is the
 This is **0-indexed** clusters, deliberately differing from the labbox
 1-indexed convention (which existed only as a guard against missing
 group labels — Python is happy with ``-1`` for that).
+
+Integer typing
+--------------
+All integer buffers and scalars use ``cnp.int64_t`` rather than bare C
+``long``.  The two coincide on LP64 (Linux, macOS) but ``long`` is only
+32 bits under Windows' LLP64 model, which would make the buffer
+declarations disagree with the ``np.int64`` arrays the Python callers
+build and raise ``ValueError: Buffer dtype mismatch`` at runtime.
+Fixed-width types keep the declared buffer type and the allocated array
+dtype in lockstep on every platform.  Do not "simplify" these back to
+``long``.
 """
 
 import numpy as np
@@ -50,10 +61,10 @@ cnp.import_array()
 
 def compute_ccg_counts(
     cnp.ndarray[double, ndim=1, mode="c"] times not None,
-    cnp.ndarray[long, ndim=1, mode="c"] clu not None,
+    cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] clu not None,
     double bin_size,
-    long half_bins,
-    long n_groups,
+    cnp.int64_t half_bins,
+    cnp.int64_t n_groups,
 ):
     """Compute the bin-count histogram of pairs.
 
@@ -76,20 +87,20 @@ def compute_ccg_counts(
     if n_groups <= 0:
         raise ValueError(f"n_groups must be > 0, got {n_groups}")
 
-    cdef long n_spikes = times.shape[0]
-    cdef long n_bins = 1 + 2 * half_bins
+    cdef cnp.int64_t n_spikes = times.shape[0]
+    cdef cnp.int64_t n_bins = 1 + 2 * half_bins
     cdef double furthest_edge = bin_size * (half_bins + 0.5)
 
-    cdef cnp.ndarray[long, ndim=3, mode="c"] counts = np.zeros(
+    cdef cnp.ndarray[cnp.int64_t, ndim=3, mode="c"] counts = np.zeros(
         (n_bins, n_groups, n_groups), dtype=np.int64
     )
 
     # Local pointers / typed views for speed
     cdef double *times_ptr = &times[0]
-    cdef long *clu_ptr = &clu[0]
-    cdef long [:, :, ::1] counts_view = counts
+    cdef cnp.int64_t *clu_ptr = &clu[0]
+    cdef cnp.int64_t [:, :, ::1] counts_view = counts
 
-    cdef long centre, second, mark1, mark2, bin_idx
+    cdef cnp.int64_t centre, second, mark1, mark2, bin_idx
     cdef double t1, t2, dt
 
     for centre in range(n_spikes):
@@ -111,7 +122,7 @@ def compute_ccg_counts(
             if 0 <= mark2 < n_groups:
                 # bin = half_bins + round((t2 - t1) / bin_size)
                 # Using floor(0.5 + x) to match the C version exactly.
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     counts_view[bin_idx, mark1, mark2] += 1
             second -= 1
@@ -128,7 +139,7 @@ def compute_ccg_counts(
                 break
             mark2 = clu_ptr[second]
             if 0 <= mark2 < n_groups:
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     counts_view[bin_idx, mark1, mark2] += 1
             second += 1
@@ -142,10 +153,10 @@ def compute_ccg_counts(
 
 def compute_ccg_counts_with_pairs(
     cnp.ndarray[double, ndim=1, mode="c"] times not None,
-    cnp.ndarray[long, ndim=1, mode="c"] clu not None,
+    cnp.ndarray[cnp.int64_t, ndim=1, mode="c"] clu not None,
     double bin_size,
-    long half_bins,
-    long n_groups,
+    cnp.int64_t half_bins,
+    cnp.int64_t n_groups,
 ):
     """Compute counts AND the spike-index pairs that contributed.
 
@@ -172,15 +183,15 @@ def compute_ccg_counts_with_pairs(
     if n_groups <= 0:
         raise ValueError(f"n_groups must be > 0, got {n_groups}")
 
-    cdef long n_spikes = times.shape[0]
-    cdef long n_bins = 1 + 2 * half_bins
+    cdef cnp.int64_t n_spikes = times.shape[0]
+    cdef cnp.int64_t n_bins = 1 + 2 * half_bins
     cdef double furthest_edge = bin_size * (half_bins + 0.5)
-    cdef long centre, second, mark1, mark2, bin_idx
+    cdef cnp.int64_t centre, second, mark1, mark2, bin_idx
     cdef double t1, t2, dt
-    cdef long n_pairs = 0
+    cdef cnp.int64_t n_pairs = 0
 
     cdef double *times_ptr = &times[0]
-    cdef long *clu_ptr = &clu[0]
+    cdef cnp.int64_t *clu_ptr = &clu[0]
 
     # ── Pass 1: count pairs ──────────────────────────────────────────────── #
     for centre in range(n_spikes):
@@ -195,7 +206,7 @@ def compute_ccg_counts_with_pairs(
                 break
             mark2 = clu_ptr[second]
             if 0 <= mark2 < n_groups:
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     n_pairs += 1
             second -= 1
@@ -206,21 +217,21 @@ def compute_ccg_counts_with_pairs(
                 break
             mark2 = clu_ptr[second]
             if 0 <= mark2 < n_groups:
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     n_pairs += 1
             second += 1
 
     # ── Pass 2: allocate and fill ────────────────────────────────────────── #
-    cdef cnp.ndarray[long, ndim=3, mode="c"] counts = np.zeros(
+    cdef cnp.ndarray[cnp.int64_t, ndim=3, mode="c"] counts = np.zeros(
         (n_bins, n_groups, n_groups), dtype=np.int64
     )
-    cdef cnp.ndarray[long, ndim=2, mode="c"] pairs = np.empty(
+    cdef cnp.ndarray[cnp.int64_t, ndim=2, mode="c"] pairs = np.empty(
         (n_pairs, 2), dtype=np.int64
     )
-    cdef long [:, :, ::1] counts_view = counts
-    cdef long [:, ::1] pairs_view = pairs
-    cdef long pair_idx = 0
+    cdef cnp.int64_t [:, :, ::1] counts_view = counts
+    cdef cnp.int64_t [:, ::1] pairs_view = pairs
+    cdef cnp.int64_t pair_idx = 0
 
     for centre in range(n_spikes):
         mark1 = clu_ptr[centre]
@@ -234,7 +245,7 @@ def compute_ccg_counts_with_pairs(
                 break
             mark2 = clu_ptr[second]
             if 0 <= mark2 < n_groups:
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     counts_view[bin_idx, mark1, mark2] += 1
                     pairs_view[pair_idx, 0] = centre
@@ -248,7 +259,7 @@ def compute_ccg_counts_with_pairs(
                 break
             mark2 = clu_ptr[second]
             if 0 <= mark2 < n_groups:
-                bin_idx = half_bins + <long>floor(0.5 + (t2 - t1) / bin_size)
+                bin_idx = half_bins + <cnp.int64_t>floor(0.5 + (t2 - t1) / bin_size)
                 if 0 <= bin_idx < n_bins:
                     counts_view[bin_idx, mark1, mark2] += 1
                     pairs_view[pair_idx, 0] = centre
