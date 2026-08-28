@@ -351,15 +351,24 @@ def smooth_labels_to_state_collection(
     state_keys:         Sequence[str] | None = None,
     stc:                NBStateCollection | None = None,
     overwrite:          bool = True,
+    decode:             str = "argmax",
+    transition_model:   "TransitionModel | None" = None,
 ) -> NBStateCollection:
     """Convert per-sample softmax outputs into state-collection periods.
 
     Mirrors the post-processing tail of :file:`bhv_nn.m`:
 
-    1. Argmax → integer state code per sample.
+    1. Decode per-sample integer state codes — either per-frame
+       ``argmax`` (the MATLAB behaviour) or structured Viterbi
+       decoding with transition probabilities and per-state
+       minimum-duration floors (see
+       :mod:`~neurobox.analysis.classifiers.state_decoding`).
     2. Mark invalid samples (``valid_mask=False``) as code -1.
-    3. Median-filter the integer labels with a window of
-       ``smoothing_window_s`` (matches MATLAB's "200 ms state minimum").
+    3. For ``decode="argmax"`` only: median-filter the integer labels
+       with a window of ``smoothing_window_s`` (matches MATLAB's
+       "200 ms state minimum").  Viterbi output is already
+       duration-constrained, so the filter is skipped — it could only
+       *violate* the floors the decoder just enforced.
     4. For each state, threshold-cross into ``(start, stop)`` sample
        index intervals.
     5. Add states to *stc* (creating one if not given).
@@ -376,6 +385,7 @@ def smooth_labels_to_state_collection(
         time-stamp the resulting state periods (in seconds).
     smoothing_window_s:
         Median-filter window in seconds.  Default 0.2 matches MATLAB.
+        Only applied when ``decode="argmax"``.
     valid_mask:
         Optional ``(T,)`` boolean mask; samples where False are
         marked unlabelled (no state assigned).
@@ -389,6 +399,12 @@ def smooth_labels_to_state_collection(
     overwrite:
         If True (default) and an existing state with the same label
         is present, it is replaced; if False, raises.
+    decode:
+        ``"argmax"`` (default, MATLAB parity) or ``"viterbi"``.
+    transition_model:
+        :class:`~neurobox.analysis.classifiers.state_decoding.TransitionModel`;
+        required when ``decode="viterbi"``.  Fit one from hand labels
+        with :func:`~neurobox.analysis.classifiers.state_decoding.fit_transition_matrix`.
 
     Returns
     -------
@@ -406,8 +422,10 @@ def smooth_labels_to_state_collection(
     label_probs = np.asarray(label_probs)
     T, n_states = label_probs.shape
 
-    # Argmax → integer labels in [0, n_states-1]
-    labels = np.argmax(label_probs, axis=1).astype(np.int32)
+    # Decode → integer labels in [0, n_states-1]
+    from .state_decoding import decode_labels
+    labels = decode_labels(
+        label_probs, method=decode, model=transition_model)
 
     # Invalid samples: code -1
     if valid_mask is not None:
@@ -417,13 +435,15 @@ def smooth_labels_to_state_collection(
                 f"valid_mask length {valid_mask.shape[0]} does not match "
                 f"label_probs length {T}"
             )
+        labels = labels.copy()
         labels[~valid_mask] = -1
 
-    # Median filter — odd-length window in samples
+    # Median filter — argmax path only; Viterbi already enforces
+    # duration floors and the filter could break them.
     win = int(round(smoothing_window_s * feature_samplerate))
     if win % 2 == 0:
         win += 1
-    if win >= 3 and T >= win:
+    if decode == "argmax" and win >= 3 and T >= win:
         # medfilt on int array with -1 sentinels: do +2 shift so all values
         # are non-negative before the median, then shift back
         shifted = labels + 2
