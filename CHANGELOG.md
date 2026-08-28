@@ -2,6 +2,52 @@
 
 ### Added
 
+**Structured state decoding** —
+`neurobox.analysis.classifiers.state_decoding`
+- `fit_transition_matrix()` fits log transition probabilities and
+  per-state minimum-duration floors (given in seconds) from
+  hand-labelled sequences; `-1` (unlabelled) frames break transition
+  counting.  Zero-observation rows fall back to uniform rather than
+  NaN.  `labels_from_stc()` rasterises an `NBStateCollection` into
+  the per-frame integer labels the fitter consumes.
+- `viterbi_decode()` finds the maximum-a-posteriori label path.
+  Minimum durations are enforced exactly via the expanded-state
+  construction; forced advances carry the self-transition cost, so
+  the decoder maximises the standard HMM path score subject to the
+  constraint (the floor changes the feasible set, not the
+  objective).  Bouts truncated by the recording edges are exempt.
+- `decode_labels(probs, method="argmax"|"viterbi")` is the uniform
+  entry point, and `smooth_labels_to_state_collection()` gains
+  matching `decode=` / `transition_model=` parameters (default
+  `"argmax"` — exact MATLAB parity; the median filter applies only on
+  that path, since Viterbi output is already duration-constrained).
+- Not a port: MATLAB had no equivalent.  This is the principled
+  replacement for `argmax` + `ThreshCross` recommended by the
+  `label_behavior` audit, and it works with every registered backend
+  including the MATLAB-parity `patternnet`.  It is expected to
+  subsume most of what `optimize_stc_transition.m` (stage 3) did by
+  hand; that will be confirmed empirically before stage 3 is ported
+  or dropped.
+- Verified against brute force: on randomised small problems the
+  decoded path score equals exhaustive enumeration over all legal
+  label sequences, both unconstrained and under duration floors.
+
+**Labelling evaluation harness** —
+`neurobox.analysis.classifiers.evaluation`
+- Frame metrics (`frame_scores`: accuracy, macro-F1 with
+  absent-state-as-NaN semantics), segmental F1 at configurable IoU
+  thresholds (Lea et al. 2017 greedy matching), boundary MAE in
+  seconds, per-state bout statistics, and `loso_splits()` for
+  leave-one-session-out cross-validation.
+- `evaluate_labeling()` bundles the lot into a `LabelingScore` with a
+  printable `summary()`.
+- Rationale: the MATLAB pipeline scored per-frame confusion only,
+  which is nearly blind to fragmentation and boundary error — the
+  exact failure modes stage 3 existed to repair.  Two labelings with
+  identical frame accuracy can differ wildly in bout structure; the
+  segmental metrics make that visible and give the upcoming
+  TCN-vs-patternnet comparison an honest yardstick.
+
 **`fet_mis` feature set** — `neurobox.analysis.kinematics.fet_mis`
 - Port of `MTA/features/fet_mis.m`; the 18-column feature basis the
   behaviour-labelling pipeline (`label_behavior` → `label_bhv_msnn`)

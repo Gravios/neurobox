@@ -46,6 +46,14 @@ When to pick which backend
 * No torch installed → ``rf``, ``gbm``, or ``sklearn-mlp``.
 """
 
+from .state_decoding import (
+    TransitionModel, fit_transition_matrix, labels_from_stc,
+    viterbi_decode, decode_labels,
+)
+from .evaluation import (
+    segments_from_labels, frame_scores, segmental_f1, boundary_mae,
+    bout_statistics, loso_splits, LabelingScore, evaluate_labeling,
+)
 from .heuristic_labeling import (
     label_with_heuristics, HeuristicThresholds, windowed_trajectory_stats,
 )
@@ -78,6 +86,21 @@ from .session_alignment import (
 )
 
 __all__ = [
+    # Structured decoding (replaces argmax+ThreshCross; subsumes stage 3)
+    "TransitionModel",
+    "fit_transition_matrix",
+    "labels_from_stc",
+    "viterbi_decode",
+    "decode_labels",
+    # Evaluation harness (LOSO + segmental metrics)
+    "segments_from_labels",
+    "frame_scores",
+    "segmental_f1",
+    "boundary_mae",
+    "bout_statistics",
+    "loso_splits",
+    "LabelingScore",
+    "evaluate_labeling",
     # Stage-1 heuristic labelling (label_behavior_with_heuristics.m)
     "label_with_heuristics",
     "HeuristicThresholds",
