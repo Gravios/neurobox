@@ -189,6 +189,41 @@
 
 ### Fixed
 
+**Training cycle repairs (audit findings 1–3)**
+- *Reproducibility*: `train_classifier_ensemble(rng=...)` previously
+  seeded only the bootstrap; torch weight init, batch shuffling and
+  validation splits drew from unseeded global state, so identical
+  seeds produced different ensembles.  All seven backends now accept
+  `seed` (mapped to `random_state` for sklearn); the ensemble derives
+  one seed per member from the caller's generator unless the caller
+  pins one, `_train_loop` drives its DataLoader from a seeded
+  `torch.Generator`, and the BiLSTM's bespoke loop seeds its shuffle
+  and split the same way.  A fixed `rng` now fixes the entire run.
+  `rng` passed inside `bootstrap_kwargs` is honoured for the draws
+  instead of colliding with the ensemble's own forwarding.
+- *Epoch-unit contract*: `label_with_heuristics` (patch 0010) stored
+  **sample indices** in periods-mode `NBEpoch`s, violating the
+  contract that periods data is seconds (`resample` is metadata-only
+  for periods; `to_mask` multiplies by samplerate).  Every
+  seconds-assuming consumer — `stc2mat`, `whole_state_bootstrap` —
+  silently mis-scaled stage-1 output; the bootstrap drew its full
+  block with ~half the "walk" rows off-state.  The original audit
+  misattributed this to the bootstrap; the bootstrap was
+  contract-correct and the fix is in the emitter, which now converts
+  to seconds on assembly.  `whole_state_bootstrap` additionally
+  raises when periods begin at or beyond the feature timeline
+  (indices can't be seconds) instead of clipping into garbage, and
+  warns when a declared state has no periods in a session.
+- *Missing-state protection*: backends inferred class count from
+  `y.max() + 1`, so a state with no training rows silently shrank
+  `predict_proba` — a missing trailing state gave `(T, S-1)`; a
+  missing middle state would misalign every later column against
+  `state_names`.  `fit` now accepts an explicit `n_classes` (the
+  ensemble passes `len(states)`), validates labels against it, and
+  `train_classifier_ensemble` raises when a state has no rows across
+  ALL sessions while a per-session gap merely warns and still trains
+  full-width.
+
 **`bfet` defect in the heuristic labeller — documented and switchable**
 - MATLAB line 138 of `label_behavior_with_heuristics.m` builds the
   `btraj` window stack from `hfet` (2-column, head only) instead of

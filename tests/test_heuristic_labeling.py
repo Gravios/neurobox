@@ -169,10 +169,9 @@ class TestLabelWithHeuristics:
         assert stc["rear"].key == "r"
 
     def test_detects_known_walk_bouts(self):
-        fs = 120.0
         stc = label_with_heuristics(
             _synthetic(walk_bouts=((10., 20.), (35., 45.))))
-        per = stc["walk"].data / fs
+        per = stc["walk"].data          # seconds by NBEpoch contract
         assert per.shape[0] == 2
         # within half a window (64 samples ≈ 0.53 s) of ground truth
         assert per[0][0] == pytest.approx(10.0, abs=0.6)
@@ -185,21 +184,19 @@ class TestLabelWithHeuristics:
         assert stc["walk"].data.shape[0] == 0
 
     def test_detects_rear(self):
-        fs = 120.0
         stc = label_with_heuristics(
             _synthetic(walk_bouts=(), rear_bout=(25., 28.)))
-        per = stc["rear"].data / fs
+        per = stc["rear"].data          # seconds by NBEpoch contract
         assert per.shape[0] == 1
         # the 1 Hz low-pass narrows the detected span inside the bout
         assert 25.0 <= per[0][0] <= 28.0
         assert 25.0 <= per[0][1] <= 28.5
 
     def test_gper_spans_recording(self):
-        fs = 120.0
         stc = label_with_heuristics(_synthetic(seconds=60.0))
         g = stc["gper"].data
         assert g.shape == (1, 2)
-        assert g[0][1] / fs == pytest.approx(60.0, abs=1.0)
+        assert g[0][1] == pytest.approx(60.0, abs=1.0)   # seconds
 
     def test_returns_without_side_effects(self, tmp_path):
         """Unlike MATLAB this writes nothing — the caller decides."""

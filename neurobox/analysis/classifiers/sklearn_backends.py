@@ -67,9 +67,16 @@ class SklearnMLPClassifier(Classifier):
         n_iter_no_change:   int   = 20,
         validation_fraction: float = 0.1,
         random_state:       int | None = None,
+        seed:               int | None = None,
         verbose:            bool = False,
     ) -> None:
         super().__init__()
+        # `seed` is the uniform name injected by the ensemble
+        # trainer; it maps onto sklearn's random_state unless that
+        # was given explicitly.
+        if random_state is None and seed is not None:
+            random_state = int(seed)
+        self.seed = random_state
         self._kwargs = dict(
             hidden_layer_sizes  = tuple(hidden_layer_sizes),
             alpha               = float(alpha),
@@ -86,7 +93,15 @@ class SklearnMLPClassifier(Classifier):
     def fit(self, X, y, **kwargs):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = kwargs.pop("n_classes", None)
+        if n_classes is None:
+            n_classes = int(y.max() + 1) if y.size else 0
+        else:
+            n_classes = int(n_classes)
+            if y.size and int(y.max()) >= n_classes:
+                raise ValueError(
+                    f"label {int(y.max())} out of range for "
+                    f"n_classes={n_classes}")
         self._clf = _SkMLP(**self._kwargs)
         self._clf.fit(X, y)
         self.n_features_in_ = X.shape[1]
@@ -139,8 +154,15 @@ class RandomForestClassifierWrapper(Classifier):
         min_samples_leaf: int = 1,
         n_jobs:         int = -1,
         random_state:   int | None = None,
+        seed:           int | None = None,
     ) -> None:
         super().__init__()
+        # `seed` is the uniform name injected by the ensemble
+        # trainer; it maps onto sklearn's random_state unless that
+        # was given explicitly.
+        if random_state is None and seed is not None:
+            random_state = int(seed)
+        self.seed = random_state
         self._kwargs = dict(
             n_estimators     = int(n_estimators),
             max_depth        = max_depth,
@@ -153,7 +175,15 @@ class RandomForestClassifierWrapper(Classifier):
     def fit(self, X, y, **kwargs):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = kwargs.pop("n_classes", None)
+        if n_classes is None:
+            n_classes = int(y.max() + 1) if y.size else 0
+        else:
+            n_classes = int(n_classes)
+            if y.size and int(y.max()) >= n_classes:
+                raise ValueError(
+                    f"label {int(y.max())} out of range for "
+                    f"n_classes={n_classes}")
         self._clf = RandomForestClassifier(**self._kwargs)
         self._clf.fit(X, y)
         self.n_features_in_ = X.shape[1]
@@ -217,8 +247,15 @@ class HistGBClassifierWrapper(Classifier):
         n_iter_no_change: int  = 10,
         validation_fraction: float = 0.1,
         random_state:    int | None = None,
+        seed:            int | None = None,
     ) -> None:
         super().__init__()
+        # `seed` is the uniform name injected by the ensemble
+        # trainer; it maps onto sklearn's random_state unless that
+        # was given explicitly.
+        if random_state is None and seed is not None:
+            random_state = int(seed)
+        self.seed = random_state
         self._kwargs = dict(
             max_iter            = int(max_iter),
             learning_rate       = float(learning_rate),
@@ -234,7 +271,15 @@ class HistGBClassifierWrapper(Classifier):
     def fit(self, X, y, **kwargs):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = kwargs.pop("n_classes", None)
+        if n_classes is None:
+            n_classes = int(y.max() + 1) if y.size else 0
+        else:
+            n_classes = int(n_classes)
+            if y.size and int(y.max()) >= n_classes:
+                raise ValueError(
+                    f"label {int(y.max())} out of range for "
+                    f"n_classes={n_classes}")
         self._clf = HistGradientBoostingClassifier(**self._kwargs)
         self._clf.fit(X, y)
         self.n_features_in_ = X.shape[1]

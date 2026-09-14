@@ -276,7 +276,9 @@ def label_with_heuristics(
     -------
     NBStateCollection
         With states ``gper`` (key ``a``), ``walk`` (``w``) and
-        ``rear`` (``r``), at the sample rate of *xyz*.
+        ``rear`` (``r``).  Period data is in **seconds** (the NBEpoch
+        contract); the epochs carry ``samplerate=xyz.samplerate`` as
+        provenance metadata only.
 
     Notes
     -----
@@ -522,16 +524,26 @@ def label_with_heuristics(
         per = subtract_ranges(per, np.clip(pad, 0, T))
 
     # ── Assemble ────────────────────────────────────────────────────── #
+    # NBEpoch 'periods' data is in SECONDS by contract (its resample()
+    # is metadata-only for periods mode, and to_mask() multiplies by
+    # samplerate).  The internal cascade works in sample indices at
+    # ``fs``; convert on the way out.  An earlier revision stored the
+    # raw indices here, which silently broke every seconds-assuming
+    # consumer downstream (stc2mat masks scaled by fs², bootstrap rows
+    # drawn from the wrong frames).
+    def _sec(idx_periods: np.ndarray) -> np.ndarray:
+        if idx_periods.size == 0:
+            return np.zeros((0, 2), dtype=np.float64)
+        return (np.clip(np.atleast_2d(idx_periods), 0, T)
+                .astype(np.float64) / fs)
+
     stc = NBStateCollection(mode=mode)
     gper = np.array([[th.gper_trim, max(T - th.gper_trim, th.gper_trim + 1)]],
                     dtype=np.int64)
-    stc.add_state(NBEpoch(gper, samplerate=fs, label="gper", key="a"))
-    stc.add_state(NBEpoch(
-        np.clip(np.atleast_2d(per), 0, T).astype(np.int64) if per.size
-        else np.zeros((0, 2), dtype=np.int64),
-        samplerate=fs, label="walk", key="w"))
-    stc.add_state(NBEpoch(
-        np.clip(np.atleast_2d(rper), 0, T).astype(np.int64) if rper.size
-        else np.zeros((0, 2), dtype=np.int64),
-        samplerate=fs, label="rear", key="r"))
+    stc.add_state(NBEpoch(_sec(gper), samplerate=fs,
+                          label="gper", key="a"))
+    stc.add_state(NBEpoch(_sec(per if per.size else np.zeros((0, 2))),
+                          samplerate=fs, label="walk", key="w"))
+    stc.add_state(NBEpoch(_sec(rper if rper.size else np.zeros((0, 2))),
+                          samplerate=fs, label="rear", key="r"))
     return stc
