@@ -41,6 +41,27 @@ from .base import Classifier, FitInfo
 # Shared training utilities                                             #
 # ──────────────────────────────────────────────────────────────────── #
 
+def _resolve_n_classes(y: np.ndarray, kwargs: dict) -> int:
+    """Resolve the class count for ``fit``.
+
+    ``fit(..., n_classes=S)`` pins the output width explicitly — the
+    training pipeline passes ``len(states)`` so a state with no
+    training rows can never silently shrink ``predict_proba`` (the
+    audit's "silent column loss": a missing trailing state produced
+    ``(T, S-1)`` and a missing middle state would misalign every
+    later column against ``state_names``).  Falls back to
+    ``y.max() + 1`` when not given (standalone use).
+    """
+    n = kwargs.pop("n_classes", None)
+    if n is None:
+        return int(y.max() + 1) if y.size else 0
+    n = int(n)
+    if y.size and int(y.max()) >= n:
+        raise ValueError(
+            f"label {int(y.max())} out of range for n_classes={n}")
+    return n
+
+
 def _select_device(device: str | None) -> torch.device:
     if device is not None:
         return torch.device(device)
@@ -55,6 +76,7 @@ def _make_loader(
     batch_size: int,
     shuffle:    bool,
     device:     torch.device,
+    generator:  "torch.Generator | None" = None,
 ) -> DataLoader:
     Xt = torch.as_tensor(X, dtype=torch.float32)
     yt = torch.as_tensor(y, dtype=torch.long)
@@ -63,6 +85,7 @@ def _make_loader(
         batch_size = batch_size,
         shuffle    = shuffle,
         num_workers= 0,                 # in-process; fine for CPU/GPU
+        generator  = generator,
     )
 
 
@@ -80,8 +103,14 @@ def _train_loop(
     patience:   int,
     device:     torch.device,
     verbose:    bool = False,
+    seed:       int | None = None,
 ) -> tuple[int, float, float]:
     """Generic train loop with optional held-out validation + early stopping.
+
+    When *seed* is given it fixes the validation split and the
+    DataLoader shuffle order; weight-init determinism is the calling
+    backend's job (it calls ``torch.manual_seed`` before building the
+    module).
 
     Returns ``(epochs_used, final_train_loss, final_val_loss)``.
     """
@@ -93,7 +122,7 @@ def _train_loop(
         n_val = int(round(n * val_split))
         if n_val < 8:
             n_val = 0
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(0 if seed is None else seed)
         idx = rng.permutation(n)
         val_idx, tr_idx = idx[:n_val], idx[n_val:]
         Xtr, ytr = X[tr_idx], y[tr_idx]
@@ -101,7 +130,12 @@ def _train_loop(
     else:
         Xtr, ytr, Xva, yva = X, y, None, None
 
-    train_loader = _make_loader(Xtr, ytr, batch_size, True,  device)
+    gen = None
+    if seed is not None:
+        gen = torch.Generator()
+        gen.manual_seed(int(seed))
+    train_loader = _make_loader(Xtr, ytr, batch_size, True,  device,
+                                generator=gen)
     val_loader   = (
         _make_loader(Xva, yva, batch_size, False, device)
         if Xva is not None else None
@@ -225,8 +259,10 @@ class PatternNetMLP(Classifier):
         patience:     int   = 20,
         device:       str | None = None,
         verbose:      bool  = False,
+        seed:         int | None = None,
     ) -> None:
         super().__init__()
+        self.seed         = seed
         self.n_neurons    = int(n_neurons)
         self.epochs       = int(epochs)
         self.batch_size   = int(batch_size)
@@ -241,11 +277,14 @@ class PatternNetMLP(Classifier):
     def fit(self, X: np.ndarray, y: np.ndarray, **kwargs) -> "PatternNetMLP":
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = _resolve_n_classes(y, kwargs)
         device = _select_device(self.device)
+        if self.seed is not None:
+            torch.manual_seed(int(self.seed))
         self._model = _PatternNetModule(X.shape[1], self.n_neurons, n_classes)
         ep_used, tl, vl = _train_loop(
             self._model, X, y,
+            seed       = self.seed,
             n_classes  = n_classes,
             epochs     = self.epochs,
             batch_size = self.batch_size,
@@ -348,8 +387,10 @@ class MLPClassifierTorch(Classifier):
         patience:     int   = 20,
         device:       str | None = None,
         verbose:      bool  = False,
+        seed:         int | None = None,
     ) -> None:
         super().__init__()
+        self.seed         = seed
         self.hidden_sizes = tuple(hidden_sizes)
         self.dropout      = float(dropout)
         self.epochs       = int(epochs)
@@ -365,7 +406,9 @@ class MLPClassifierTorch(Classifier):
     def fit(self, X, y, **kwargs):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = _resolve_n_classes(y, kwargs)
+        if self.seed is not None:
+            torch.manual_seed(int(self.seed))
         self._model = _MLPModule(X.shape[1], self.hidden_sizes, n_classes,
                                  self.dropout)
         ep_used, tl, vl = _train_loop(
@@ -373,7 +416,7 @@ class MLPClassifierTorch(Classifier):
             n_classes=n_classes, epochs=self.epochs, batch_size=self.batch_size,
             lr=self.lr, weight_decay=self.weight_decay, val_split=self.val_split,
             patience=self.patience, device=_select_device(self.device),
-            verbose=self.verbose,
+            verbose=self.verbose, seed=self.seed,
         )
         self.n_features_in_ = X.shape[1]
         self.n_classes_     = n_classes
@@ -491,8 +534,10 @@ class Conv1DClassifier(Classifier):
         patience:     int   = 15,
         device:       str | None = None,
         verbose:      bool  = False,
+        seed:         int | None = None,
     ) -> None:
         super().__init__()
+        self.seed         = seed
         self.context_half = int(context_half)
         self.n_filters    = int(n_filters)
         self.kernel       = int(kernel)
@@ -512,7 +557,9 @@ class Conv1DClassifier(Classifier):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
         Xc = _build_context(X, self.context_half)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = _resolve_n_classes(y, kwargs)
+        if self.seed is not None:
+            torch.manual_seed(int(self.seed))
         self._model = _Conv1DModule(
             X.shape[1], n_classes, self.n_filters, self.kernel,
             self.depth, self.dropout,
@@ -522,7 +569,7 @@ class Conv1DClassifier(Classifier):
             n_classes=n_classes, epochs=self.epochs, batch_size=self.batch_size,
             lr=self.lr, weight_decay=self.weight_decay, val_split=self.val_split,
             patience=self.patience, device=_select_device(self.device),
-            verbose=self.verbose,
+            verbose=self.verbose, seed=self.seed,
         )
         self.n_features_in_ = X.shape[1]
         self.n_classes_     = n_classes
@@ -628,8 +675,10 @@ class BiLSTMClassifier(Classifier):
         patience:     int   = 10,
         device:       str | None = None,
         verbose:      bool  = False,
+        seed:         int | None = None,
     ) -> None:
         super().__init__()
+        self.seed         = seed
         self.hidden       = int(hidden)
         self.n_layers     = int(n_layers)
         self.dropout      = float(dropout)
@@ -660,7 +709,11 @@ class BiLSTMClassifier(Classifier):
         X = np.asarray(X, dtype=np.float32)
         y = np.asarray(y, dtype=np.int64)
         Xs, ys, _ = self._to_seq(X, y)
-        n_classes = int(y.max() + 1) if y.size else 0
+        n_classes = _resolve_n_classes(y, kwargs)
+        if self.seed is not None:
+            # Seeds weight init AND the per-epoch torch.randperm shuffle
+            # in the bespoke loop below.
+            torch.manual_seed(int(self.seed))
         self._model = _BiLSTMModule(X.shape[1], self.hidden, self.n_layers,
                                     n_classes, self.dropout)
         device = _select_device(self.device)
@@ -669,7 +722,7 @@ class BiLSTMClassifier(Classifier):
         # Bespoke loop: per-step CE over (batch, seq, classes)
         n = Xs.shape[0]
         n_val = int(round(n * self.val_split)) if self.val_split > 0 else 0
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(0 if self.seed is None else self.seed)
         idx = rng.permutation(n)
         val_idx, tr_idx = idx[:n_val], idx[n_val:]
         Xtr_t = torch.as_tensor(Xs[tr_idx])

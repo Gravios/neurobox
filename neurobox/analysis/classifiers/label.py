@@ -270,9 +270,23 @@ def train_classifier_ensemble(
         Optional symmetric clip (in σ) applied after z-scoring.
         Default 5.  Pass None to disable.
     rng:
-        Optional random generator for reproducibility.
+        Optional random generator.  With a fixed generator the entire
+        training run is reproducible end-to-end: it drives the
+        bootstrap draws AND supplies one derived seed per ensemble
+        member (weight initialisation, batch order, validation
+        split), unless the caller pins ``seed``/``random_state`` in
+        *classifier_kwargs* themselves.
     verbose:
         Print per-iteration progress.
+
+    Notes
+    -----
+    Class imbalance is handled **by construction**, not by loss
+    weighting: the bootstrap draws ``state_block_size`` rows per state
+    regardless of how much of the recording each state occupies
+    (MATLAB's approach).  Anything that trains on raw sequences
+    instead of bootstrap output — e.g. a future sequence backend —
+    does not inherit this balancing and must weight its loss.
 
     Returns
     -------
@@ -282,6 +296,10 @@ def train_classifier_ensemble(
         rng = np.random.default_rng()
     classifier_kwargs = dict(classifier_kwargs or {})
     bootstrap_kwargs  = dict(bootstrap_kwargs or {})
+    # `rng` is a legitimate whole_state_bootstrap kwarg; a caller who
+    # pins it there gets exactly that generator for the draws (the
+    # ensemble-level rng then only seeds the classifiers).
+    bootstrap_rng = bootstrap_kwargs.pop("rng", rng)
 
     # ── Estimate shared normalisation across all sessions ────────── #
     norm = None
@@ -300,6 +318,8 @@ def train_classifier_ensemble(
 
     # ── Train n_iter classifiers ─────────────────────────────────── #
     clfs: list[Classifier] = []
+    inject_seed = ("seed" not in classifier_kwargs
+                   and "random_state" not in classifier_kwargs)
     for it in range(n_iter):
         if verbose:
             print(f"[ensemble] iter {it + 1}/{n_iter}: bootstrapping ...")
@@ -308,17 +328,42 @@ def train_classifier_ensemble(
         yb_blocks: list[np.ndarray] = []
         for stc, X, fs in sessions_z:
             res = whole_state_bootstrap(
-                stc, X, fs, states=states, rng=rng, **bootstrap_kwargs,
+                stc, X, fs, states=states, rng=bootstrap_rng,
+                **bootstrap_kwargs,
             )
             Xb_blocks.append(res.features)
             yb_blocks.append(res.labels)
         Xb = np.concatenate(Xb_blocks, axis=0)
         yb = np.concatenate(yb_blocks, axis=0)
 
+        # Global coverage: a state may lack periods in SOME sessions
+        # (the bootstrap warns and contributes nothing), but a state
+        # with zero rows across ALL sessions cannot be trained and
+        # would previously corrupt the output silently — a missing
+        # trailing state shrank predict_proba to (T, S-1); a missing
+        # middle state would misalign every later column.
+        present = np.unique(yb)
+        missing = [states[i] for i in range(len(states))
+                   if i not in present]
+        if missing:
+            raise ValueError(
+                f"train_classifier_ensemble: state(s) {missing} have no "
+                f"labelled periods in any training session; cannot train "
+                f"a {len(states)}-state classifier. Remove them from "
+                f"`states` or supply sessions that contain them."
+            )
+
         if verbose:
             print(f"           training {backend} on {Xb.shape[0]} samples")
-        clf = make_classifier(backend, **classifier_kwargs)
-        clf.fit(Xb, yb)
+        member_kwargs = dict(classifier_kwargs)
+        if inject_seed:
+            # One seed per member, drawn from the caller's generator:
+            # with a fixed `rng` the whole ensemble — bootstrap draws,
+            # weight init, batch order — is reproducible, while members
+            # still differ from each other.
+            member_kwargs["seed"] = int(rng.integers(2 ** 31 - 1))
+        clf = make_classifier(backend, **member_kwargs)
+        clf.fit(Xb, yb, n_classes=len(states))
         clfs.append(clf)
 
     return TrainedEnsemble(

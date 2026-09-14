@@ -50,6 +50,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
+import warnings
+
 import numpy as np
 
 from neurobox.dtype.epoch import NBEpoch
@@ -174,16 +176,45 @@ def whole_state_bootstrap(
                 f"whole_state_bootstrap: state {name!r} not found in stc"
             ) from e
 
-        # Periods in seconds → sample indices at feature samplerate
+        # Periods in seconds → sample indices at feature samplerate.
+        # NBEpoch 'periods' data is ALWAYS in seconds regardless of the
+        # epoch's samplerate attribute (see NBEpoch.resample — periods
+        # resampling is metadata-only).  Anything that looks like
+        # sample indices here is a caller bug; the range guard below
+        # turns the worst case from silent garbage into an error.
         ep_s = np.asarray(ep.data, dtype=np.float64)
         if ep_s.size == 0 or ep_s.shape[0] == 0:
-            # No periods for this state; record empty eval periods, skip block
+            # No periods for this state in THIS session.  Legitimate in
+            # multi-session training (a session may lack e.g. 'groom');
+            # the ensemble trainer verifies global coverage across all
+            # sessions and raises there if a state has no rows at all.
+            warnings.warn(
+                f"whole_state_bootstrap: state {name!r} has no periods "
+                f"in this session; contributing 0 rows",
+                stacklevel=2,
+            )
             eval_periods_per_state.append(np.zeros((0, 2), dtype=np.int64))
             continue
         periods = np.column_stack([
             np.floor(ep_s[:, 0] * feature_samplerate).astype(np.int64),
             np.ceil( ep_s[:, 1] * feature_samplerate).astype(np.int64),
         ])
+        # A period that BEGINS at or beyond the end of the feature
+        # timeline cannot be a rounding artefact — it means the epoch
+        # data was not in seconds (e.g. sample indices), or the stc
+        # belongs to a different session.  Fail loudly rather than
+        # train on garbage.
+        fully_out = periods[:, 0] >= n_T
+        if fully_out.any():
+            raise ValueError(
+                f"whole_state_bootstrap: {int(fully_out.sum())} of "
+                f"{periods.shape[0]} periods for state {name!r} start at "
+                f"or beyond the feature timeline (n_T={n_T} samples at "
+                f"{feature_samplerate} Hz; first offending period "
+                f"{ep_s[fully_out][0].tolist()} s). NBEpoch period data "
+                f"must be in seconds — this usually means sample indices "
+                f"were stored, or the stc is from a different session."
+            )
         # Clip to feature timeline
         periods[:, 0] = np.clip(periods[:, 0], 0, n_T - 1)
         periods[:, 1] = np.clip(periods[:, 1], 0, n_T - 1)
